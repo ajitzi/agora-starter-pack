@@ -7,7 +7,11 @@ sources:
   - docs/architecture/architecture-v1.md
   - _bmad-output/planning-artifacts/prds/prd-la-cabane-du-merle-2026-08-24/prd.md
   - _bmad-output/planning-artifacts/prds/prd-la-cabane-du-merle-2026-08-24/rgpd-validation-pack.md
-updated: 2026-08-24
+  - docs/ui/admin/*.md
+  - docs/ui/customer/*.md
+  - docs/ui/amap/*.md
+  - docs/ui/auth/*.md
+updated: 2026-08-25
 ---
 
 # La Cabane du Merle - Experience Spine
@@ -41,6 +45,8 @@ Le systeme UI est `@project/ui`: `Screen`, `ScreenHeader`, `StickyActionBar`, `E
 
 Navigation admin mobile: `Aujourd'hui`, `Commandes`, `Preparer`, `Dispos`, `Plus`. En tablette paysage et desktop, la meme hierarchie devient une sidebar, avec les libelles developpes `Preparation` et `Disponibilites`. Une surface secondaire ne doit jamais retirer les quatre operations frequentes de l'acces direct.
 
+`Marche` et `Tournee` sont des modeles recurrents; leurs occurrences datees portent l'execution quotidienne et la cloture. La configuration de la ferme, des commandes, des notifications, de l'AMAP et des lieux de recuperation est secondaire et ne se mele pas aux flux operationnels. Un produit `Actif` ou `Inactif` est distinct de sa disponibilite courante: l'inactivation remplace la suppression et preserve les snapshots historiques.
+
 References visuelles P0: [`mockups/key-admin-today.html`](mockups/key-admin-today.html), [`key-admin-order-list.html`](mockups/key-admin-order-list.html), [`key-admin-order-details.html`](mockups/key-admin-order-details.html), [`key-admin-order-validation.html`](mockups/key-admin-order-validation.html), [`key-admin-preparation.html`](mockups/key-admin-preparation.html), [`key-admin-preparation-run.html`](mockups/key-admin-preparation-run.html), [`key-admin-availability.html`](mockups/key-admin-availability.html), [`key-admin-publish-availability.html`](mockups/key-admin-publish-availability.html), [`key-customer-catalog.html`](mockups/key-customer-catalog.html), [`key-customer-checkout.html`](mockups/key-customer-checkout.html), [`key-customer-order-details.html`](mockups/key-customer-order-details.html), [`key-amap-home.html`](mockups/key-amap-home.html) et [`key-amap-basket.html`](mockups/key-amap-basket.html). Les spines prevalaient sur ces illustrations en cas de conflit.
 
 ## Voice and Tone
@@ -68,6 +74,11 @@ Microcopy directe, concrete et situee dans le temps. La voix de marque est dans 
 | `SegmentedControl` | Disponibilite et vues | Options mutuellement exclusives, libelles complets, etat selectionne expose aux lecteurs d'ecran. |
 | `ResponsivePane` | Tablette/desktop | Master/detail seulement si les deux panneaux evitent un aller-retour operationnel. |
 | Reorganisation de tournee | Edition de tournee | Drag and drop optionnel; boutons explicites Monter/Descendre obligatoires. |
+| OccurrenceCard | Distribution, preparation, cloture | Affiche type, horaire, progression et statut d'occurrence; ouvre l'execution datee, jamais le modele recurrent. |
+| AvailabilityStatusControl | Disponibilites | Modifie l'etat sans publier; expose `non enregistre`, `enregistre`, `non publie` et conflit. |
+| PublicationDiff | Revue de publication | Compare brouillon versionne et dernier snapshot publie; tout apercu perime impose le rechargement. |
+| AmapExceptionEditor | Semaine AMAP | Edite une exception datee, jamais l'abonnement permanent; indique titulaire et beneficiaire lors d'une cession. |
+| ClosingSummary | Cloture | Resume les quatre etapes, les decisions confirmees et les elements encore bloquants. |
 
 ## State Patterns
 
@@ -86,6 +97,8 @@ Microcopy directe, concrete et situee dans le temps. La voix de marque est dans 
 | Lien de suivi | Lien invalide, expire, revoque ou remplace: ne divulguer aucune donnee et orienter vers le canal de contact de l'exploitation. L'administration peut regenerer un lien, ce qui revoque le precedent; le jeton n'est jamais affiche dans l'historique ou l'interface. |
 | Acces | Session expiree, compte desactive, acces refuse ou occurrence annulee: expliquer l'etat sans exposer de donnees, proposer la connexion ou le retour autorise. |
 
+Toute mutation envoie l'`expectedVersion` de l'entite affichee. Si la version est obsolete, l'apercu est marque perime, aucune ecriture n'est faite, l'etat courant est recharge et les choix non soumis sont conserves lorsque cela est possible.
+
 ## Interaction Primitives
 
 - Taper agit; chaque `EntityCard` tappable est une cible unique et explicite.
@@ -97,6 +110,9 @@ Microcopy directe, concrete et situee dans le temps. La voix de marque est dans 
 - L'edition post-echeance ou une correction significative demande un motif et cree un evenement d'audit non modifiable.
 - Pour une action AMAP, verifier l'autorisation a l'ouverture et a la soumission dans le fuseau `Europe/Paris`; apres expiration ou conflit, rafraichir et conserver la vue en lecture seule.
 - A la cloture, traiter la file des non-retraits: `Annuler` ou `Reporter`. Un report impose une occurrence future `Prevue`, confirme les deux retraits et trace motif/auteur avant le retour a `A preparer`.
+- La cloture est persistante en quatre etapes: commandes, disponibilites, publication facultative, confirmation. La publication peut reussir sans notification; un echec de notification ne retire pas le snapshot publie.
+- Une commande classique modifiee par le client apres acceptation retourne a `A valider`; l'administration voit le diff avant la nouvelle decision.
+- Le cycle AMAP est: composition hebdomadaire, echeance, generation et snapshot de commandes. Abonnement permanent et exception datee restent deux objets distincts; une suspension confirme ou annule toute cession existante.
 
 ## Responsive & Platform
 
@@ -162,7 +178,7 @@ Echec: si aucune occurrence n'est selectable, l'ecran explique qu'aucun retrait 
 4. Le systeme confirme le changement et met a jour l'historique.
 5. **Climax:** Paul retrouve son prochain panier avec le changement clairement affiche, sans ambiguite sur ce qui sera prepare.
 
-Echec: apres l'echeance, les actions deviennent indisponibles avec une explication explicite; le panier reste consultable.
+Echec: apres l'echeance, les actions deviennent indisponibles avec une explication explicite; le panier reste consultable. Une suspension demande de confirmer l'annulation de toute cession en cours.
 
 ### Flux 4 - Publier une offre fiable (Lea, maraichere, apres la recolte)
 
@@ -179,7 +195,7 @@ Echec: si le brouillon a change, Lea recharge la revue avant de republier. Sans 
 1. Lea ouvre la cloture de l'occurrence et voit les commandes `Preparee` non recuperees.
 2. Pour chaque commande, elle choisit `Annuler` ou `Reporter`.
 3. Pour un report, elle choisit une occurrence future `Prevue`; l'ancienne et la nouvelle recuperation sont confirmees avant enregistrement.
-4. Elle met a jour les disponibilites puis choisit `Enregistrer` ou `Enregistrer et publier`.
+4. Elle met a jour les disponibilites, choisit `Enregistrer` ou `Enregistrer et publier`, puis confirme le recapitulatif final.
 5. **Climax:** l'occurrence passe a `Terminee` et toute commande reportee reapparait `A preparer` dans sa nouvelle occurrence, avec son trace d'audit.
 
 Echec: une occurrence annulee ou une transition refusee reste non cloturable; l'ecran explique la cause et conserve les decisions deja confirmees.

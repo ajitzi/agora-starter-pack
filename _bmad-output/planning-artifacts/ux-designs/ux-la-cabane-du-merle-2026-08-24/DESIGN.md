@@ -8,7 +8,11 @@ sources:
   - docs/architecture/architecture-v1.md
   - _bmad-output/planning-artifacts/prds/prd-la-cabane-du-merle-2026-08-24/prd.md
   - _bmad-output/planning-artifacts/architecture/architecture-la-cabane-du-merle-2026-08-24/ARCHITECTURE-SPINE.md
-updated: 2026-08-24
+  - docs/ui/admin/*.md
+  - docs/ui/customer/*.md
+  - docs/ui/amap/*.md
+  - docs/ui/auth/*.md
+updated: 2026-08-25
 colors:
   surface-base: '#F7F6F1'
   surface-raised: '#FFFFFF'
@@ -116,6 +120,18 @@ components:
     radius: '{rounded.sm}'
   ResponsivePane:
     gap: '{spacing.5}'
+  OccurrenceCard:
+    surface: '{components.card}'
+  AvailabilityStatusControl:
+    radius: '{rounded.sm}'
+  PublicationDiff:
+    background: '{colors.surface-subtle}'
+    radius: '{rounded.sm}'
+  AmapExceptionEditor:
+    background: '{colors.surface-raised}'
+    radius: '{rounded.md}'
+  ClosingSummary:
+    surface: '{components.card}'
 ---
 
 ## Brand & Style
@@ -165,6 +181,7 @@ Les champs et controles compacts utilisent `{rounded.sm}`. Les cartes, actions p
 - **NumericInput**: `{components.numeric-input}`, unite toujours visible, clavier numerique, boutons `+` et `-` lorsque la granularite est connue.
 - **ConfirmDialog**: reserve aux effets irreversibles, avec titre consequence, detail concis, action destructive distincte et option de retour.
 - **EmptyState**, **SegmentedControl** et **ResponsivePane** heritent des primitives Tamagui via leurs tokens homonymes; aucune variante visuelle ad hoc dans les ecrans.
+- **OccurrenceCard**, **AvailabilityStatusControl**, **PublicationDiff**, **AmapExceptionEditor** et **ClosingSummary** prolongent les primitives partagees sans introduire de valeur visuelle ad hoc.
 
 Le focus sur une action primaire combine un anneau externe `{colors.focus-on-primary}` et un decalage visible; il reste discernable de `{colors.action-primary}`. Les etats ne doivent pas seulement modifier la couleur.
 

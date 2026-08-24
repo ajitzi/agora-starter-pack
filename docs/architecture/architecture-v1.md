@@ -8,7 +8,7 @@ La cible comprend :
 
 * une application web basée sur **Next.js** ;
 * une application mobile basée sur **Expo** ;
-* une API dont la technologie reste à déterminer ;
+* une API basée sur **AdonisJS**, avec **PostgreSQL** et **Lucid** pour la persistence ;
 * une UI cross-platform basée sur **Tamagui** ;
 * des écrans fonctionnels placés dans `packages` afin d’être réutilisables entre web et mobile ;
 * des domaines métier indépendants des runtimes ;
@@ -168,39 +168,129 @@ Les routes doivent elles aussi rester fines et monter des écrans issus de `pack
 
 ---
 
-# 6. `apps/api`
+# 6. `apps/api` — AdonisJS
 
-La technologie backend reste à déterminer.
+L’API utilise **AdonisJS** comme framework backend.
 
-L’architecture ne doit donc pas dépendre prématurément d’un framework spécifique.
+La stack backend retenue est :
 
-Structure conceptuelle :
+```text
+AdonisJS
+├── PostgreSQL
+├── Lucid
+├── VineJS
+├── Adonis Auth
+├── Ace
+└── Japa
+```
+
+Les briques officielles du framework sont privilégiées lorsqu’elles répondent au besoin afin de conserver une stack cohérente et de limiter la fragmentation technique.
+
+AdonisJS reste néanmoins un **runtime et une couche d’infrastructure**. Les règles métier fondamentales continuent de vivre dans `packages/domains` et ne doivent pas dépendre d’AdonisJS, de Lucid ou de PostgreSQL.
+
+Structure indicative, alignée sur les conventions AdonisJS :
 
 ```text
 apps/api/
-└── src/
-    ├── routes/
-    ├── middleware/
-    ├── auth/
-    ├── adapters/
-    │   ├── persistence/
-    │   ├── email/
-    │   ├── sms/
-    │   └── notifications/
-    ├── jobs/
-    └── bootstrap/
+├── app/
+│   ├── controllers/
+│   │   ├── admin/
+│   │   ├── customer/
+│   │   ├── amap/
+│   │   └── auth/
+│   │
+│   ├── middleware/
+│   ├── validators/
+│   │
+│   ├── models/
+│   │   └── ...                  # modèles Lucid de persistence
+│   │
+│   ├── adapters/
+│   │   ├── persistence/
+│   │   │   ├── repositories/
+│   │   │   └── mappers/
+│   │   ├── email/
+│   │   ├── sms/
+│   │   └── notifications/
+│   │
+│   └── jobs/
+│
+├── start/
+│   └── routes.ts
+│
+├── config/
+│   ├── app.ts
+│   ├── auth.ts
+│   └── database.ts
+│
+├── database/
+│   ├── migrations/
+│   ├── seeders/
+│   └── factories/
+│
+├── tests/
+├── bin/
+├── ace.js
+├── adonisrc.ts
+└── package.json
 ```
 
 L’API est responsable de :
 
-* l’exposition HTTP ;
-* l’authentification ;
-* les tâches planifiées ;
-* les workers éventuels ;
-* la persistence ;
+* l’exposition HTTP via les routes et controllers AdonisJS ;
+* la validation des entrées à la frontière HTTP, notamment avec VineJS ;
+* l’authentification et la session via Adonis Auth ;
+* l’autorisation technique et les middlewares ;
+* les tâches planifiées et les workers éventuels ;
+* la persistence PostgreSQL via Lucid ;
+* les migrations, seeders et factories de base de données ;
 * les intégrations externes ;
 * l’injection des dépendances ;
 * l’exécution des cas d’usage définis dans les packages métier.
+
+Le flux cible est :
+
+```text
+HTTP
+ ↓
+AdonisJS route / controller
+ ↓
+validation / auth
+ ↓
+cas d’usage de packages/domains/*/application
+ ↓
+contrats métier / repositories
+ ↓
+adapters apps/api
+ ↓
+Lucid
+ ↓
+PostgreSQL
+```
+
+La règle centrale est :
+
+> **Lucid ne sort jamais de `apps/api`.**
+
+Un modèle Lucid représente la persistence. Il ne doit pas devenir l’entité métier utilisée par `packages/domains`.
+
+Exemple :
+
+```text
+packages/domains/orders/domain/order.ts
+        │
+        │ entité métier pure
+        ▼
+Order
+        ▲
+        │ mapping
+        ▼
+apps/api/app/models/order.ts
+        │
+        │ modèle Lucid
+        ▼
+PostgreSQL
+```
 
 ---
 
@@ -1033,7 +1123,11 @@ Il peut être utilisé par le web et le mobile.
 
 ---
 
-# 35. Persistence
+# 35. Persistence — PostgreSQL et Lucid
+
+La base de données principale est **PostgreSQL**.
+
+La couche de persistence utilise **Lucid**, l’ORM SQL officiel de l’écosystème AdonisJS.
 
 Le domaine peut définir les contrats dont ses cas d’usage ont besoin.
 
@@ -1046,18 +1140,74 @@ interface OrderRepository {
 }
 ```
 
-L’implémentation appartient au runtime backend :
+L’implémentation concrète appartient au runtime backend :
 
 ```text
-apps/api/src/adapters/persistence/
+apps/api/app/adapters/persistence/
+├── repositories/
+├── mappers/
+└── ...
 ```
+
+Les modèles Lucid vivent dans :
+
+```text
+apps/api/app/models/
+```
+
+et les migrations dans :
+
+```text
+apps/api/database/migrations/
+```
+
+La séparation attendue est :
+
+```text
+Domain Entity
+    │
+    │ mapping
+    ▼
+Lucid Model
+    │
+    ▼
+PostgreSQL
+```
+
+Par exemple :
+
+```text
+Order
+≠
+OrderModel Lucid
+```
+
+`Order` porte les invariants et comportements métier.
+
+Le modèle Lucid porte la représentation persistée, les relations de base de données et les opérations nécessaires aux adapters.
 
 Le métier reste ainsi indépendant de :
 
 * PostgreSQL ;
-* Prisma ;
-* Drizzle ;
+* Lucid ;
+* AdonisJS ;
 * ou d’une autre technologie de stockage.
+
+Cette frontière permet de profiter de l’intégration et de la productivité de Lucid sans transformer les entités métier en modèles Active Record.
+
+Les transactions Lucid sont utilisées dans les adapters lorsque plusieurs écritures doivent rester atomiques, par exemple :
+
+```text
+livrer une commande AMAP
+        ↓
+passer la commande à Livrée
++
+créer l’événement de consommation
++
+décrémenter le solde de paniers
+```
+
+Le cas d’usage décide de l’intention métier ; l’adapter garantit l’atomicité technique.
 
 ---
 
@@ -1192,6 +1342,7 @@ ADR-002-nextjs-expo.md
 ADR-003-tamagui.md
 ADR-004-cross-platform-screens.md
 ADR-005-domain-boundaries.md
+ADR-006-adonisjs-api.md
 ```
 
 ## `api`
@@ -1256,17 +1407,34 @@ La structure précise dépendra du provider et des outils retenus.
 │   │   └── app.json
 │   │
 │   └── api/
-│       └── src/
-│           ├── routes/
-│           ├── middleware/
-│           ├── auth/
-│           ├── adapters/
-│           │   ├── persistence/
-│           │   ├── email/
-│           │   ├── sms/
-│           │   └── notifications/
-│           ├── jobs/
-│           └── bootstrap/
+│       ├── app/
+│       │   ├── controllers/
+│       │   │   ├── admin/
+│       │   │   ├── customer/
+│       │   │   ├── amap/
+│       │   │   └── auth/
+│       │   ├── middleware/
+│       │   ├── validators/
+│       │   ├── models/
+│       │   ├── adapters/
+│       │   │   ├── persistence/
+│       │   │   │   ├── repositories/
+│       │   │   │   └── mappers/
+│       │   │   ├── email/
+│       │   │   ├── sms/
+│       │   │   └── notifications/
+│       │   └── jobs/
+│       ├── start/
+│       │   └── routes.ts
+│       ├── config/
+│       ├── database/
+│       │   ├── migrations/
+│       │   ├── seeders/
+│       │   └── factories/
+│       ├── tests/
+│       ├── bin/
+│       ├── ace.js
+│       └── adonisrc.ts
 │
 ├── packages/
 │   ├── screens/
@@ -1516,6 +1684,20 @@ plutôt que par des chemins internes.
 
 Les implémentations concrètes appartiennent au backend.
 
+Pour la persistence :
+
+```text
+packages/domains
+        ↓ contrats
+apps/api/app/adapters/persistence
+        ↓
+Lucid
+        ↓
+PostgreSQL
+```
+
+Aucun import depuis `@adonisjs/*` ou `@adonisjs/lucid/*` n’est autorisé dans le métier pur.
+
 ---
 
 ## 17. L’historique métier utilise des snapshots
@@ -1552,6 +1734,42 @@ L’arborescence représente une direction, pas l’obligation de créer immédi
 
 ---
 
+## 20. AdonisJS reste dans `apps/api`
+
+AdonisJS fournit le runtime backend, HTTP, auth, validation, configuration, CLI et intégrations techniques.
+
+Les packages métier ne doivent pas dépendre directement :
+
+```text
+@adonisjs/core
+@adonisjs/auth
+@adonisjs/lucid
+```
+
+---
+
+## 21. Les modèles Lucid ne sont pas les entités métier
+
+Préférer :
+
+```text
+Order
+↕ mapper
+OrderModel
+```
+
+à :
+
+```text
+Order extends BaseModel
+```
+
+lorsque `Order` porte des invariants métier.
+
+Lucid est volontairement adopté comme technologie de persistence, mais il reste derrière les repositories et adapters du backend.
+
+---
+
 # 45. Direction des dépendances
 
 ```text
@@ -1582,11 +1800,39 @@ Tamagui se trouve derrière :
 
 Le backend et ses adapters restent derrière les abstractions métier nécessaires.
 
+Le flux backend cible est :
+
+```text
+AdonisJS
+   │
+   ├── controllers
+   ├── validators
+   ├── auth / middleware
+   │
+   ▼
+application use cases
+   │
+   ▼
+domain
+   │
+   ▼
+repository contracts
+   │
+   ▼
+apps/api adapters
+   │
+   ▼
+Lucid
+   │
+   ▼
+PostgreSQL
+```
+
 ---
 
 # 46. Philosophie finale
 
-L’architecture repose sur quatre idées principales.
+L’architecture repose sur cinq idées principales.
 
 ### Les runtimes sont des shells
 
@@ -1612,6 +1858,24 @@ permettent une spécialisation ciblée.
 ### Les domaines portent le métier
 
 Les écrans orchestrent le métier mais ne doivent pas devenir l’endroit où sont implémentées les règles métier fondamentales.
+
+### AdonisJS fournit le runtime backend
+
+AdonisJS est le framework API officiel du projet.
+
+PostgreSQL est la base principale et Lucid la couche de persistence privilégiée.
+
+Cette décision réduit le nombre de briques à composer tout en conservant une frontière stricte :
+
+```text
+AdonisJS / Lucid
+        ↓
+apps/api uniquement
+
+packages/domains
+        ↓
+aucune dépendance framework / ORM
+```
 
 ### Tamagui fournit le langage UI commun
 
