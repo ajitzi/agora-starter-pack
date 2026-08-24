@@ -88,8 +88,9 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-005** Le systeme doit permettre une quantite connue visible, connue masquee, ou non suivie.
 - **FR-006** La mise a jour d'une disponibilite ne doit ni reserver ni deduire automatiquement de stock.
 - **FR-007** Les commandes, preparations, livraisons et ventes hors application ne doivent pas modifier automatiquement les disponibilites.
-- **FR-008** L'offre publique doit afficher la derniere publication active; une offre non publiee ne doit pas etre accessible a la commande publique.
-- **FR-009** Une commande doit conserver la reference du snapshot de publication sur lequel elle a ete creee.
+- **FR-008** L'URL publique unique de l'offre doit toujours afficher la derniere publication active. Une offre non publiee ou un snapshot historique ne doit pas etre accessible a la commande publique.
+- **FR-009** Une commande doit conserver la reference et la version du snapshot de publication affiche au moment de sa creation. La publication d'une nouvelle offre ne modifie ni ses lignes ni son montant initial; une personne ouvrant l'URL publique apres cette publication voit uniquement la nouvelle offre.
+- **FR-009a** L'offre publique doit indiquer que les quantites sont estimatives et non reservees. Une quantite affichee, meme connue, ne constitue pas un engagement de fourniture.
 
 ### 6.2 Publications et email
 
@@ -103,6 +104,9 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-017** Un evenement de consentement doit conserver l'identite ou l'adresse concernee, la date, le libelle et la version de l'information affichee, la source et l'etat d'opt-in ou de retrait.
 - **FR-018** Avant chaque envoi, le systeme doit exclure les adresses desinscrites, dupliquees ou marquees en echec definitif et conserver l'audit de la campagne.
 - **FR-019** Aucun email transactionnel, de rappel ou de changement de statut n'est envoye en V1. Les seuls emails autorises sont les publications de disponibilites aux utilisateurs inscrits ayant donne leur opt-in.
+- **FR-019a** L'inscription aux publications doit etre disponible depuis un formulaire public distinct de la commande. Elle collecte une adresse email, affiche la mention d'information versionnee et une case d'opt-in non pre-cochable. Une adresse n'est ajoutee qu'une fois; une nouvelle inscription apres retrait cree un nouvel evenement de consentement. Aucun email de double opt-in n'est envoye en V1.
+- **FR-019b** Un email de publication doit contenir l'identite de l'exploitation expedrice, une adresse de reponse, l'objet de la publication, un lien vers l'offre publique et un lien de desinscription individuel. Le consentement marketing ne conditionne jamais la commande ni son lien de suivi affiche a l'ecran.
+- **FR-019c** Une campagne doit conserver son contenu, sa publication source, le destinataire, le statut d'envoi et les echecs definitifs. Les echecs definitifs placent l'adresse en suppression; les echecs temporaires sont retentes au plus deux fois avant d'etre journalises comme echec.
 
 ### 6.3 Commandes classiques
 
@@ -118,7 +122,9 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-029** Le workflow nominal classique doit etre `A valider -> A preparer -> Preparee -> Livree`, avec `Annulee` comme issue alternative.
 - **FR-030** Une ligne de commande doit figer a la creation le produit, le libelle, l'unite, le prix unitaire applique et la quantite demandee; la quantite reelle et le montant final sont figes lorsqu'ils sont saisis ou corriges lors de la preparation.
 - **FR-031** Le systeme doit calculer le montant final a partir de la quantite reelle et du prix unitaire lorsque ces valeurs existent.
-- **FR-032** L'administrateur doit pouvoir corriger manuellement le montant final d'une commande avec un motif trace.
+- **FR-031a** A la creation, le montant indicatif est la somme de chaque quantite demandee multipliee par le prix unitaire fige, arrondie au centime par ligne puis totalisee. Pendant la preparation, le montant calcule utilise les quantites reelles et les memes prix unitaires figes; une quantite reelle nulle retire la ligne du montant final sans supprimer son historique.
+- **FR-032** L'administrateur doit pouvoir corriger manuellement le montant final d'une commande avec un motif trace. L'ecrasement manuel prevaut sur le montant calcule, conserve les deux valeurs et l'auteur, et reste visible au client via son lien securise une fois la commande preparee.
+- **FR-032a** Le lien client affiche les quantites demandees et le montant indicatif aux statuts `A valider` et `A preparer`; il affiche les quantites reelles et le montant final, y compris un ecrasement manuel, aux statuts `Preparee` et `Livree`. Pour une commande `Annulee`, il affiche le dernier montant applicable et le statut d'annulation. Les ajustements en cours de preparation ne sont pas visibles au client avant le passage a `Preparee`.
 - **FR-033** Les informations commerciales d'une commande historique ne doivent pas etre modifiees par une evolution du produit.
 - **FR-034** Apres confirmation, le client doit voir un lien securise et individuel permettant de consulter sa commande sans compte; aucun envoi email de ce lien n'est realise en V1.
 - **FR-035** Avant sa date limite, le client doit pouvoir modifier ou annuler sa commande via ce lien securise.
@@ -128,12 +134,16 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-039** Un report doit conserver la recuperation initiale, la nouvelle recuperation et l'auteur de l'action.
 - **FR-040** Apres report, une commande peut revenir a `A preparer` pour verification avant la nouvelle recuperation.
 - **FR-041** L'administrateur doit pouvoir consulter et corriger une fiche contact operationnelle et l'historique des commandes associees, sans imposer de compte au client classique.
+- **FR-041a** Tant que la date limite de l'occurrence n'est pas atteinte, une modification client recalcule le montant indicatif a partir du snapshot de commande et laisse une trace. Apres la date limite, seule l'administration peut modifier; toute modification de ligne, montant, occurrence ou statut exige un motif et cree un evenement d'audit.
+- **FR-041b** Lorsqu'une demande ne peut pas etre servie, l'administrateur doit pouvoir fixer une quantite reelle inferieure, nulle ou une substitution. Le client voit l'ajustement et son montant final lorsque la commande passe a `Preparee`; aucune validation client supplementaire n'est requise en V1. L'administrateur peut annuler la commande si l'ajustement ne permet pas la distribution.
 
 ### 6.4 Recuperation et distribution
 
 - **FR-042** L'administrateur doit pouvoir creer, modifier, activer et desactiver des modes de recuperation.
 - **FR-043** Un mode de recuperation doit pouvoir etre associe a un type fonctionnel : lieu fixe, marche ou tournee.
 - **FR-044** Toute recuperation selectable doit correspondre a une occurrence datee prevue, terminee ou annulee.
+- **FR-044a** Une occurrence contient un mode de recuperation, une date et heure de debut, une date et heure de fin, une date et heure limite de commande, le fuseau `Europe/Paris` et un statut `Prevue`, `Annulee` ou `Terminee`. Seule une occurrence `Prevue`, dont la date limite n'est pas depassee, est selectable. V1 ne limite pas la capacite ou le nombre de commandes.
+- **FR-044b** L'administrateur doit pouvoir creer une occurrence ponctuelle et generer, confirmer ou modifier les occurrences recurrentes jusqu'a 90 jours a l'avance. Une occurrence passee ne peut pas etre modifiee sauf pour passer a `Terminee`; l'annulation conserve les commandes rattachees et impose a l'administration de les annuler ou de les reporter avant cloture.
 - **FR-045** L'administrateur doit pouvoir gerer les informations d'un marche recurrent : nom, lieu, adresse, jour, horaires et statut.
 - **FR-046** Le systeme doit distinguer un marche recurrent de ses occurrences datees.
 - **FR-047** Les commandes associees a un marche doivent etre rattachees a son occurrence datee.
@@ -163,7 +173,8 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-065** L'administrateur doit pouvoir definir les produits de remplacement disponibles pour une periode.
 - **FR-066** L'adherent doit pouvoir remplacer au plus deux elements de son prochain panier par des produits autorises avant la date limite.
 - **FR-067** Les substitutions doivent etre visibles dans la commande AMAP sans calcul automatique d'equivalence de prix ou de poids.
-- **FR-068** Le systeme doit generer progressivement les commandes issues des abonnements actifs avant leur echeance, une seule fois par echeance et pour l'occurrence de retrait applicable.
+- **FR-068** Chaque jour a 06:00 `Europe/Paris`, le systeme genere une commande pour chaque echeance AMAP active situee a trois jours calendaires ou moins de son occurrence de retrait `Prevue`. La cle d'idempotence est l'abonnement et l'occurrence; une meme cle ne peut produire qu'une commande non annulee. L'absence d'occurrence selectable ou de composition active empeche la generation et cree une alerte a traiter par l'administration.
+- **FR-068a** A la generation, la composition, les remplacements autorises, le retrait, la date limite et l'abonnement sont figes dans la commande AMAP. Avant la date limite, suspension, cession, changement de retrait ou substitution modifient cette seule commande generee et sont audites; apres la date limite, seules les modifications administratives motivees sont admises. Toute modification d'abonnement apres generation ne modifie pas retroactivement la commande.
 - **FR-069** Une commande AMAP generee doit demarrer directement a `A preparer`, sans validation manuelle.
 - **FR-070** Le workflow nominal AMAP doit etre `A preparer -> Preparee -> Livree`.
 - **FR-071** L'adherent doit pouvoir consulter son prochain panier, sa composition, son retrait, la date limite et son nombre de paniers restants.
@@ -174,44 +185,49 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-076** Le passage d'une commande AMAP a `Livree` doit consommer exactement une echeance et creer un evenement de consommation rattache a cette commande.
 - **FR-077** Une correction de statut doit preserver ou corriger de facon tracable le solde de paniers restants.
 - **FR-078** L'adherent doit pouvoir consulter l'historique de ses paniers, suspensions et cessions.
+- **FR-078a** Les transitions autorisees sont : classique `A valider -> A preparer -> Preparee -> Livree`, avec `Annulee` depuis tout statut sauf `Livree`; AMAP `A preparer -> Preparee -> Livree`, avec `Annulee` avant `Livree`. Une commande `Preparee` non recuperee peut etre reportee vers une occurrence `Prevue` et revenir a `A preparer`. Toute autre transition est refusee.
+- **FR-078b** Une livraison AMAP cree une consommation unique. L'annulation ou le report d'une commande AMAP deja `Livree` est interdit; une correction exceptionnelle est reservee a l'administrateur, exige un motif et cree une contre-ecriture de consommation liee a l'evenement initial. Une commande annulee ou reportee avant livraison ne consomme aucun panier.
 
 ### 6.7 Historique et droits
 
 - **FR-079** L'application doit conserver l'historique des publications, statuts de commande, reports, occurrences, suspensions, cessions et consommations AMAP.
 - **FR-080** Les donnees clients doivent etre visibles seulement aux personnes autorisees a administrer l'exploitation.
 - **FR-081** L'administration doit pouvoir modifier manuellement une commande quel que soit son canal de creation, avec tracabilite des actions significatives.
-- **FR-082** Seuls les comptes administrateur authentifies peuvent administrer l'exploitation; un adherent authentifie ne peut consulter et modifier que ses donnees et paniers AMAP.
-- **FR-083** Chaque action historique significative doit conserver au minimum l'acteur, l'horodatage, l'objet, l'action et les valeurs avant/apres lorsque celles-ci changent.
+- **FR-082** V1 comprend les roles `Administrateur` et `Adherent AMAP`. Seuls les administrateurs authentifies peuvent administrer l'exploitation et consulter les donnees de clients classiques; un adherent authentifie ne peut consulter et modifier que ses donnees et paniers AMAP. Un compte desactive ne peut plus ouvrir de session ni acceder aux liens d'espace adherent.
+- **FR-082a** Les comptes administrateur et adherent utilisent une authentification par email et mot de passe; la reinitialisation de mot de passe est possible par lien a usage unique valable une heure. Une session expire apres 12 heures d'inactivite et peut etre revoquee par un administrateur. La creation, desactivation et reactivation d'un compte est auditee.
+- **FR-083** Chaque action historique significative doit conserver au minimum l'acteur, l'horodatage et fuseau, l'objet, l'action, les valeurs avant/apres lorsque celles-ci changent et le motif quand il est obligatoire. Les evenements d'audit sont non modifiables et consultables par les seuls administrateurs.
+- **FR-083a** Sont a minima auditables : creation, modification et publication d'offre; creation, modification, changement de statut, report, ajustement de quantite et ecrasement de montant d'une commande; creation, annulation et cloture d'une occurrence; generation, suspension, cession, substitution et consommation AMAP; connexion, reinitialisation, creation, desactivation et changement de role d'un compte; inscription, retrait et envoi de consentement; ainsi que toute demande relative aux droits des personnes.
 
 ## 7. Exigences non fonctionnelles
 
-- **NFR-001 Responsive** : les parcours client et administrateur doivent fonctionner sur smartphone, tablette et ordinateur; les actions operationnelles admin sont prioritaires sur petit ecran.
-- **NFR-002 Simplicite** : les actions frequentes (modifier une disponibilite, valider, preparer, livrer, cloturer) doivent demander un minimum d'etapes et rester visibles.
-- **NFR-003 RGPD** : l'application ne collecte que les donnees necessaires a la commande, a la distribution, a l'AMAP et aux communications consenties; elle doit informer les personnes du traitement de leurs donnees.
-- **NFR-004 Consentement** : aucun email de disponibilites n'est adresse a une personne non inscrite ou n'ayant pas donne son opt-in; le retrait doit etre effectif pour les envois suivants.
-- **NFR-005 Securite** : les liens de suivi de commande doivent etre difficiles a deviner, limites au perimetre de la commande concernee et revocables par l'administration.
+- **NFR-001 Responsive** : les parcours client et administrateur doivent fonctionner entre 320 px et 1440 px de largeur; les actions operationnelles admin sont prioritaires sur petit ecran. Les parcours modifier une disponibilite, valider, preparer, livrer et cloturer sont realisables en trois ecrans ou actions au plus depuis leur vue de travail.
+- **NFR-002 Simplicite** : la page d'accueil utilise `Europe/Paris` et definit `aujourd'hui` comme le jour civil courant, `demain` comme le jour civil suivant et `imminente` comme une occurrence commencant dans les 48 heures. Elle affiche les files vides explicitement, signale une disponibilite non publiee depuis 7 jours et calcule la progression d'une occurrence par commandes `Livree` sur commandes non annulees. Toute commande `A valider` depuis plus de 24 heures est signalee comme ancienne.
+- **NFR-003 RGPD** : l'application ne collecte que les donnees necessaires a la commande, a la distribution, a l'AMAP et aux communications consenties; elle doit informer les personnes du traitement de leurs donnees. La notice de confidentialite identifie le maraicher comme responsable, les sous-traitants impliques et les finalites, bases legales, durees, droits et canal de contact.
+- **NFR-004 Consentement** : aucun email de disponibilites n'est adresse a une personne non inscrite ou n'ayant pas donne son opt-in; le retrait doit etre effectif pour les envois suivants. Chaque evenement de consentement est immuable et contient l'adresse normalisee, l'etat, l'horodatage, la source, le texte et la version de la mention affichee.
+- **NFR-005 Securite** : les liens de suivi de commande doivent etre difficiles a deviner, limites au perimetre de la commande concernee et revocables par l'administration. Ils expirent 30 jours apres la livraison ou l'annulation, ou 90 jours apres creation si la commande n'est jamais livree; l'administration peut en generer un nouveau, ce qui revoque le precedent.
 - **NFR-006 Historique** : les snapshots publies et les donnees commerciales historisees doivent rester immuables; les changements metier doivent etre auditables.
 - **NFR-007 Disponibilite operationnelle** : l'absence de synchronisation avec un outil externe ne doit pas bloquer la prise, la preparation, la livraison ni la cloture des commandes.
-- **NFR-008 Droits des personnes** : l'administration doit disposer d'un processus documente pour repondre aux demandes d'acces, rectification, export et effacement ou anonymisation, sans detruire les obligations de conservation applicables.
-- **NFR-009 Conservation** : les durees de conservation, les responsables de traitement et les sous-traitants seront documentes avant mise en production; les donnees personnelles ne doivent pas etre conservees au-dela de la duree definie.
+- **NFR-008 Droits des personnes** : l'administration doit disposer d'un processus documente pour repondre aux demandes d'acces, rectification, export et effacement ou anonymisation, sans detruire les obligations de conservation applicables. Une demande est enregistree, verifiee, attribuee a un administrateur et traitee sous 30 jours; l'export est fourni dans un format structure et lisible.
+- **NFR-009 Conservation** : les donnees de contact et de commande sont supprimees ou anonymisees trois ans apres la derniere commande ou interaction active. Les evenements de consentement sont conserves trois ans apres leur retrait. Les donnees personnelles presentes dans l'historique operationnel expire sont pseudonymisees, en preservant les dates, montants et agregats; la table de correspondance est supprimee. Les obligations legales de conservation applicables priment et doivent etre documentees par le responsable avant mise en production.
 
 ## 8. Regles metier transverses
 
 - Les disponibilites sont une estimation manuelle et ne constituent pas un stock comptable ni une reservation.
+- En cas de demandes superieures a une estimation, les commandes restent des demandes a validation : la quantite reelle, la substitution ou l'annulation est decidee lors de la preparation et est visible au client apres preparation.
 - La publication est une action explicite, distincte de la mise a jour des disponibilites.
 - Les commandes classiques sont toujours soumises a validation manuelle.
-- Les prix, libelles et unites applicables a une commande sont figes au moment de sa creation; les quantites reelles sont renseignees lors de la preparation.
-- Une commande est toujours rattachee au contexte de recuperation pertinent, en particulier a une occurrence datee de marche ou tournee.
+- Les prix, libelles, unites, quantites demandees et montant indicatif applicables a une commande sont figes au moment de sa creation; les quantites reelles et le montant final sont renseignes lors de la preparation sans modifier les valeurs initiales.
+- Une commande est toujours rattachee a une occurrence datee, y compris pour un retrait en lieu fixe.
 - L'abonnement AMAP reste rattache a l'adherent initial en cas de cession.
 
 ## 9. Hypotheses et points ouverts
 
-- **[ASSUMPTION]** Le consentement email concerne uniquement les publications de disponibilites. Aucun email transactionnel n'est envoye en V1.
-- **[ASSUMPTION]** Un compte adherent AMAP est cree et invite par le maraicher.
-- **[ASSUMPTION]** La periode de generation anticipee d'une commande AMAP est configurable et vaut initialement trois jours avant l'echeance.
-- **[ASSUMPTION]** Une publication email cible tous les utilisateurs inscrits dont l'opt-in est actif; les listes ou preferences supplementaires sont reportees.
-- **[OPEN QUESTION]** Valider, avec le responsable RGPD, les durees de conservation, les mentions d'information et la procedure d'exercice des droits avant la mise en production.
-- **[OPEN QUESTION]** Definir la duree de validite et le renouvellement des liens securises de commande avant la conception technique.
+- Les seuls emails V1 sont les publications de disponibilites adressees aux utilisateurs inscrits ayant donne leur opt-in; aucun email transactionnel n'est envoye. Le lien de suivi de commande est affiche immediatement apres confirmation, jamais delivre par email.
+- Un compte adherent AMAP est cree et invite par le maraicher.
+- La generation anticipee d'une commande AMAP intervient trois jours calendaires avant l'occurrence applicable.
+- Une publication email cible tous les utilisateurs inscrits dont l'opt-in est actif; les listes ou preferences supplementaires sont reportees.
+- **[OPEN QUESTION]** Le responsable de traitement doit confirmer avant mise en production que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
+- Le dossier de preparation de cette validation est `rgpd-validation-pack.md`.
 
 ## 10. Evolutions envisagees
 
