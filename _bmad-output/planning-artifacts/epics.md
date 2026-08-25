@@ -182,6 +182,11 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Decision produit - propagation des modeles** : les occurrences deja generees restent independantes; modifier un marche ou une tournee ne les reecrit jamais et toute correction d'une occurrence existante est explicite et auditee.
 - **Decision produit - regles AMAP V1** : la limite de deux substitutions est globale et la date limite est portee par l'abonnement puis figee sur la commande generee; aucune surcharge hebdomadaire de ces deux parametres n'est admise en V1.
 - **Decision produit - substitutions classiques** : une commande classique ne permet aucun produit de remplacement; `FR-041b` signifie ajuster la quantite reelle ou annuler, tandis que toute substitution de produit appartient exclusivement au parcours AMAP.
+- **Decision produit - recurrence AMAP V1** : l'echeance est hebdomadaire et avance de sept jours calendaires dans `Europe/Paris` apres livraison ou suspension; un solde nul ou un abonnement inactif suspend toute nouvelle generation.
+- **Decision produit - compatibilite AMAP** : chaque mode de recuperation actif porte un attribut explicite `compatible AMAP`; seuls ces modes et leurs occurrences `Prevue` peuvent etre selectionnes par un abonnement ou une exception AMAP.
+- **Decision technique - sessions web** : les cookies de session utilisent `HttpOnly`, `Secure` en production et `SameSite=Lax`; les mutations authentifiees par cookie sont protegees contre le CSRF et les endpoints de connexion et recuperation sont limites sans permettre l'enumeration.
+- **Decision technique - scheduler V1** : un worker unique interroge la file PostgreSQL au plus chaque minute, reclame les jobs avec verrou expirant et cree au redemarrage les executions planifiees manquees.
+- **Gate de production** : les validations RGPD, prestataires, hebergement et mentions reelles bloquent uniquement une promotion en production; le developpement et les tests utilisent une configuration locale explicitement non productive.
 - **Validation juridique RGPD 1/12** : renseigner et faire valider le nom legal, l'adresse et le SIRET du responsable de traitement, ainsi que le contact vie privee et les coordonnees du DPO ou la mention de non-applicabilite.
 - **Validation juridique RGPD 2/12** : identifier l'hebergeur et le fournisseur d'email, leur raison sociale, leur pays de traitement, leurs sous-traitants ulterieurs et leurs contrats de sous-traitance.
 - **Validation juridique RGPD 3/12** : documenter les destinataires internes autorises et confirmer l'absence de transfert hors EEE ou les mecanismes et garanties de chaque transfert.
@@ -623,13 +628,23 @@ afin d'accéder à l'espace correspondant à mon rôle.
 
 **Étant donné** un compte actif avec des identifiants valides
 **Quand** l'utilisateur soumet le formulaire de connexion
-**Alors** Adonis Auth vérifie les identifiants côté API et crée une session opaque protégée par un cookie `HttpOnly`, `Secure` en production et `SameSite`
+**Alors** Adonis Auth vérifie les identifiants côté API et crée une session opaque protégée par un cookie `HttpOnly`, `Secure` en production et `SameSite=Lax`
 **Et** l'administrateur rejoint le shell d'administration tandis que l'adhérent rejoint le shell de son espace AMAP.
+
+**Étant donné** une mutation authentifiée par cookie
+**Quand** elle est soumise à l'API
+**Alors** un contrôle CSRF vérifie un jeton lié à la session et refuse toute origine non autorisée
+**Et** une requête refusée ne produit aucune écriture ni donnée protégée.
 
 **Étant donné** une adresse inconnue ou un mot de passe incorrect
 **Quand** le formulaire est soumis
 **Alors** aucune session n'est créée et un message générique n'indique pas si l'adresse existe
 **Et** l'adresse saisie reste affichée tandis que le mot de passe est effacé.
+
+**Étant donné** des tentatives répétées de connexion
+**Quand** la limite configurée par adresse IP et identifiant normalisé est dépassée
+**Alors** l'API applique une temporisation bornée avec une réponse générique
+**Et** le statut, l'existence et le rôle du compte restent impossibles à déduire du contenu ou du temps de réponse observable.
 
 **Étant donné** une session authentifiée
 **Quand** une page réservée est demandée sans session valide
@@ -676,6 +691,11 @@ afin de retrouver l'accès à mon espace sans intervention manuelle.
 **Alors** la réponse affichée reste identique que l'adresse corresponde ou non à un compte
 **Et** aucune donnée de compte, rôle ou statut n'est divulguée.
 
+**Étant donné** des demandes répétées de récupération
+**Quand** la limite configurée par adresse IP et adresse normalisée est dépassée
+**Alors** l'API conserve une réponse générique et n'émet aucun nouveau jeton pendant la temporisation
+**Et** le comportement ne révèle pas si le compte existe.
+
 **Étant donné** qu'un compte actif correspond à l'adresse soumise
 **Quand** la demande est acceptée
 **Alors** un jeton opaque aléatoire est créé, seul son condensat est conservé et il expire exactement une heure après sa création
@@ -719,7 +739,7 @@ afin de retrouver l'accès à mon espace sans intervention manuelle.
 ### Story 1.6 : Administrer les comptes et les sessions
 
 En tant qu'administrateur,
-je veux créer, désactiver ou réactiver des comptes et révoquer leurs sessions,
+je veux créer, changer le rôle, désactiver ou réactiver des comptes et révoquer leurs sessions,
 afin de maîtriser qui peut accéder à l'exploitation.
 
 **Exigences couvertes :** FR-082, FR-082a; NFR-010, NFR-011; UX-DR23, UX-DR63 à UX-DR65, UX-DR68, UX-DR70, UX-DR72, UX-DR88, UX-DR89; AD-9, AD-13, AD-15, AD-18.
@@ -750,6 +770,11 @@ afin de maîtriser qui peut accéder à l'exploitation.
 **Quand** une désactivation ou un changement de rôle supprimerait le dernier accès administratif
 **Alors** l'opération est refusée avec une explication explicite
 **Et** aucun changement partiel n'est persisté.
+
+**Étant donné** un compte actif qui n'est pas le dernier administrateur
+**Quand** un administrateur confirme son changement de rôle
+**Alors** seules les transitions `Administrateur` vers `Adherent AMAP` ou l'inverse sont admises, l'opération est auditée et toutes les sessions existantes sont révoquées atomiquement
+**Et** le passage vers `Adherent AMAP` exige une fiche adhérent compatible; il ne crée, ne réaffecte ni ne supprime silencieusement aucun abonnement.
 
 **Étant donné** un compte désactivé
 **Quand** un administrateur le réactive
@@ -2565,7 +2590,7 @@ afin de disposer d'une base fiable pour générer les prochains paniers.
 **Étant donné** une fiche adhérent
 **Quand** l'administrateur crée un abonnement
 **Alors** il renseigne la date d'inscription, le format `Panier complet` ou `Demi-panier`, le jour et point de retrait par défaut compatibles, un solde initial strictement positif, la prochaine échéance, la date limite de modification et l'état
-**Et** l'abonnement reçoit un identifiant opaque et une version initiale.
+**Et** l'abonnement reçoit un identifiant opaque, une version initiale et une recurrence hebdomadaire non configurable en V1.
 
 **Étant donné** un adhérent possédant déjà un abonnement actif
 **Quand** un second abonnement actif est demandé
@@ -2579,7 +2604,7 @@ afin de disposer d'une base fiable pour générer les prochains paniers.
 
 **Étant donné** le retrait par défaut
 **Quand** il est sélectionné
-**Alors** il correspond à un mode actif et compatible avec les distributions AMAP
+**Alors** il correspond à un mode actif dont l'attribut `compatible AMAP` est vrai
 **Et** le jour choisi permet de résoudre une occurrence `Prévue` sans rattacher l'abonnement à une occurrence historique précise.
 
 **Étant donné** la date limite de modification
@@ -2787,6 +2812,11 @@ afin que la commande générée reflète exactement la semaine concernée.
 **Alors** elle référence une date locale, une occurrence `Prévue` compatible, le format, le retrait prévu et la limite issue de l'abonnement
 **Et** elle possède son propre identifiant et sa propre version sans être encore une commande.
 
+**Étant donné** une échéance hebdomadaire livrée ou suspendue
+**Quand** la prochaine échéance est calculée
+**Alors** elle avance exactement de sept jours calendaires dans `Europe/Paris` et recherche l'occurrence `Prévue` compatible correspondante
+**Et** un solde nul ou un abonnement inactif n'engendre aucune nouvelle échéance.
+
 **Étant donné** qu'aucune occurrence compatible ou aucune composition active n'existe
 **Quand** l'échéance est évaluée
 **Alors** elle est marquée bloquée avec la cause précise
@@ -2819,7 +2849,7 @@ afin que la commande générée reflète exactement la semaine concernée.
 
 **Étant donné** une échéance suspendue
 **Quand** la prochaine échéance de l'abonnement est recalculée
-**Alors** elle est décalée selon la récurrence sans modifier le solde
+**Alors** elle est décalée de sept jours calendaires dans `Europe/Paris` sans modifier le solde
 **Et** l'ancienne échéance reste historisée avec auteur, dates et motif facultatif.
 
 **Étant donné** une commande AMAP déjà générée pour l'échéance
@@ -2861,6 +2891,11 @@ afin qu'elles rejoignent la préparation sans validation manuelle ni doublon.
 **Quand** il est `06:00` dans `Europe/Paris`
 **Alors** un job persistant PostgreSQL évalue les échéances AMAP dues
 **Et** il est réclamé atomiquement par l'unique worker configuré, avec verrou temporaire, journal des tentatives et reprise après perte de verrou.
+
+**Étant donné** le worker d'un environnement actif
+**Quand** il démarre ou poursuit son polling au plus chaque minute
+**Alors** il compare la dernière exécution quotidienne attendue aux exécutions enregistrées et crée toute exécution de 06:00 manquée
+**Et** la contrainte d'idempotence empêche deux exécutions logiques pour la même date locale malgré redémarrages ou concurrence.
 
 **Étant donné** un abonnement actif avec un solde positif
 **Quand** son échéance se situe à trois jours calendaires ou moins de son occurrence de retrait
@@ -3409,6 +3444,11 @@ afin de disposer des décisions vérifiées nécessaires avant toute mise en pro
 **Quand** l'environnement est évalué pour une mise en production
 **Alors** le contrôle de préparation échoue en identifiant chaque décision manquante
 **Et** aucune valeur proposée dans le pack RGPD n'est considérée comme un avis juridique implicite.
+
+**Étant donné** un environnement local, de test ou de staging explicitement non productif
+**Quand** les validations juridiques ou prestataires ne sont pas encore renseignées
+**Alors** le développement et les tests restent possibles avec des valeurs de démonstration identifiées comme non validées
+**Et** aucune promotion en production ni collecte réelle n'est autorisée avec cette configuration.
 
 ### Story 7.2 : Versionner et publier l'information de confidentialité
 
@@ -4003,6 +4043,11 @@ afin de préparer une candidate sans exposer la production au staging.
 **Quand** le fournisseur VPS est choisi
 **Alors** une ADR retient OVHcloud ou un équivalent hébergeant physiquement en France après vérification de localisation, DPA, accès, SLA, snapshots, stockage de sauvegarde et sortie
 **Et** aucun environnement n'est créé tant qu'un critère bloquant reste sans preuve.
+
+**Étant donné** que le fournisseur réel n'est pas encore retenu
+**Quand** l'infrastructure est développée ou testée avant la gate de production
+**Alors** les manifests et procédures restent paramétrables et sont validés localement sans identifiants, contrats ou données réelles
+**Et** aucune ressource de production n'est créée avant l'ADR approuvée.
 
 **Étant donné** le VPS retenu
 **Quand** les cibles `staging` et `production` sont provisionnées

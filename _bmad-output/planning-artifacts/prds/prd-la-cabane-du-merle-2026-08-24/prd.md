@@ -105,7 +105,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-016** L'utilisateur inscrit doit pouvoir consulter et modifier son consentement aux emails de disponibilites, y compris se desinscrire via chaque email de publication.
 - **FR-017** Un evenement de consentement doit conserver l'identite ou l'adresse concernee, la date, le libelle et la version de l'information affichee, la source et l'etat d'opt-in ou de retrait.
 - **FR-018** Avant chaque envoi, le systeme doit exclure les adresses desinscrites, dupliquees ou marquees en echec definitif et conserver l'audit de la campagne.
-- **FR-019** Aucun email transactionnel, de rappel ou de changement de statut n'est envoye en V1. Les seuls emails autorises sont les publications de disponibilites aux utilisateurs inscrits ayant donne leur opt-in.
+- **FR-019** Aucun email transactionnel, de rappel ou de changement de statut n'est envoye en V1, a l'exception du lien de definition ou de reinitialisation de mot de passe. Les publications de disponibilites restent reservees aux utilisateurs inscrits ayant donne leur opt-in.
 - **FR-019a** L'inscription aux publications doit etre disponible depuis un formulaire public distinct de la commande. Elle collecte une adresse email, affiche la mention d'information versionnee et une case d'opt-in non pre-cochable. Une adresse n'est ajoutee qu'une fois; une nouvelle inscription apres retrait cree un nouvel evenement de consentement. Aucun email de double opt-in n'est envoye en V1.
 - **FR-019b** Un email de publication doit contenir l'identite de l'exploitation expedrice, une adresse de reponse, l'objet de la publication, un lien vers l'offre publique et un lien de desinscription individuel. Le consentement marketing ne conditionne jamais la commande ni son lien de suivi affiche a l'ecran.
 - **FR-019c** Une campagne doit conserver son contenu, sa publication source, le destinataire, le statut d'envoi et les echecs definitifs. Les echecs definitifs placent l'adresse en suppression; les echecs temporaires sont retentes au plus deux fois avant d'etre journalises comme echec.
@@ -139,7 +139,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-040** Apres report, une commande peut revenir a `A preparer` pour verification avant la nouvelle recuperation.
 - **FR-041** L'administrateur doit pouvoir consulter et corriger une fiche contact operationnelle et l'historique des commandes associees, sans imposer de compte au client classique.
 - **FR-041a** Tant que la date limite de l'occurrence n'est pas atteinte, une modification client recalcule le montant indicatif a partir du snapshot de commande et laisse une trace. Apres la date limite, seule l'administration peut modifier; toute modification de ligne, montant, occurrence ou statut exige un motif et cree un evenement d'audit.
-- **FR-041b** Lorsqu'une demande ne peut pas etre servie, l'administrateur doit pouvoir fixer une quantite reelle inferieure, nulle ou une substitution. Le client voit l'ajustement et son montant final lorsque la commande passe a `Preparee`; aucune validation client supplementaire n'est requise en V1. L'administrateur peut annuler la commande si l'ajustement ne permet pas la distribution.
+- **FR-041b** Lorsqu'une demande classique ne peut pas etre servie, l'administrateur doit pouvoir fixer une quantite reelle inferieure ou nulle, ou annuler la commande. Le client voit l'ajustement et son montant final lorsque la commande passe a `Preparee`; aucune validation client supplementaire n'est requise en V1. Les substitutions de produits sont reservees aux paniers AMAP.
 
 ### 6.4 Recuperation et distribution
 
@@ -165,14 +165,14 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-056** Pour une occurrence, le systeme doit fournir une vue agregee des quantites a preparer.
 - **FR-057** La vue agregee doit distinguer la composition des paniers AMAP des produits commandables en complement.
 - **FR-058** La cloture d'une occurrence doit permettre de traiter les commandes restantes, mettre a jour les disponibilites et choisir entre enregistrer ou enregistrer et publier.
-- **FR-059** Une occurrence cloturee doit passer a `Terminee` et rester accessible dans l'historique.
+- **FR-059** Une occurrence executee cloturee doit passer a `Terminee` et rester accessible dans l'historique. Une occurrence `Annulee` dont toutes les commandes sont resolues reste `Annulee` et recoit un horodatage de cloture administrative.
 - **FR-059a** La cloture doit suivre un parcours guide : traitement explicite des commandes preparees non recuperees, mise a jour facultative des disponibilites, publication facultative, puis confirmation. Chaque decision confirmee est persistante; l'action finale revalide cote serveur que l'occurrence n'est pas deja terminee, qu'aucune commande bloquante ne reste et que les modifications de disponibilite ne sont pas en erreur.
 
 ### 6.6 AMAP
 
 - **FR-060** L'administrateur doit pouvoir creer et gerer les adherents AMAP et leurs comptes.
-- **FR-060a** Un adherent ne peut avoir qu'un abonnement AMAP actif a la fois. L'abonnement doit indiquer un type `panier complet` ou `demi-panier`, un retrait par defaut compatible et un solde initial strictement positif.
-- **FR-061** Un abonnement doit conserver l'adherent, la date d'inscription, le type de panier, le jour de retrait par defaut, le point de retrait par defaut, le nombre de paniers restants, la prochaine echeance, la date limite de modification et son statut.
+- **FR-060a** Un adherent ne peut avoir qu'un abonnement AMAP actif a la fois. L'abonnement doit indiquer un type `panier complet` ou `demi-panier`, un retrait par defaut dont le mode actif porte explicitement `compatible AMAP`, et un solde initial strictement positif.
+- **FR-061** Un abonnement doit conserver l'adherent, la date d'inscription, le type de panier, le jour de retrait par defaut, le point de retrait par defaut, le nombre de paniers restants, la prochaine echeance, la date limite de modification et son statut. La recurrence V1 est hebdomadaire : une echeance livree ou suspendue avance la prochaine echeance de sept jours calendaires dans `Europe/Paris`; un solde nul ou un abonnement inactif suspend toute nouvelle generation.
 - **FR-062** L'inscription et la resiliation d'un abonnement AMAP ne sont pas accessibles en ligne en V1.
 - **FR-063** L'administrateur doit pouvoir definir une composition de panier et de demi-panier par periode.
 - **FR-063a** Une composition AMAP est definie pour une date ou semaine de livraison donnee. Pour chaque produit, les quantites de panier complet et de demi-panier sont explicites et independantes; l'absence du produit dans le demi-panier est distincte d'une quantite nulle. La composition est ordonnee et une ligne produit ne peut pas etre dupliquee sans justification metier.
@@ -181,7 +181,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-066** L'adherent doit pouvoir remplacer au plus deux elements de son prochain panier par des produits autorises avant la date limite.
 - **FR-067** Les substitutions doivent etre visibles dans la commande AMAP sans calcul automatique d'equivalence de prix ou de poids.
 - **FR-067a** Pour chaque substitution autorisee, le maraicher doit definir explicitement la quantite applicable au panier complet et, si le produit y est inclus, au demi-panier. Une substitution ne peut viser qu'un produit autorise pour cette semaine et ne peut pas elle-meme etre substituee.
-- **FR-068** Chaque jour a 06:00 `Europe/Paris`, le systeme genere une commande pour chaque echeance AMAP active situee a trois jours calendaires ou moins de son occurrence de retrait `Prevue`. La cle d'idempotence est l'abonnement et l'occurrence; une meme cle ne peut produire qu'une commande non annulee. L'absence d'occurrence selectable ou de composition active empeche la generation et cree une alerte a traiter par l'administration.
+- **FR-068** Chaque jour a 06:00 `Europe/Paris`, le systeme genere une commande pour chaque echeance AMAP active situee a trois jours calendaires ou moins de son occurrence de retrait `Prevue`. Un worker persistant interroge la file au plus chaque minute et rattrape toute execution quotidienne manquee apres une indisponibilite. La cle d'idempotence est l'abonnement et l'occurrence; une meme cle ne peut produire qu'une commande non annulee. L'absence d'occurrence selectable ou de composition active empeche la generation et cree une alerte a traiter par l'administration.
 - **FR-068a** A la generation, la composition, les remplacements autorises, le retrait, la date limite et l'abonnement sont figes dans la commande AMAP. Avant la date limite, suspension, cession, changement de retrait ou substitution modifient cette seule commande generee et sont audites; apres la date limite, seules les modifications administratives motivees sont admises. Toute modification d'abonnement apres generation ne modifie pas retroactivement la commande.
 - **FR-068b** Avant generation, les exceptions AMAP sont rattachees a l'abonnement et a son echeance datee, sans modifier les parametres permanents de l'abonnement. Apres generation, elles doivent modifier la commande correspondante si l'action reste autorisee, afin d'eviter tout ecart entre exception et commande operationnelle.
 - **FR-069** Une commande AMAP generee doit demarrer directement a `A preparer`, sans validation manuelle.
@@ -225,7 +225,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 ## 8. Regles metier transverses
 
 - Les disponibilites sont une estimation manuelle et ne constituent pas un stock comptable ni une reservation.
-- En cas de demandes superieures a une estimation, les commandes restent des demandes a validation : la quantite reelle, la substitution ou l'annulation est decidee lors de la preparation et est visible au client apres preparation.
+- En cas de demandes superieures a une estimation, les commandes restent des demandes a validation : la quantite reelle inferieure ou nulle, ou l'annulation, est decidee lors de la preparation et est visible au client apres preparation. Les substitutions sont reservees a l'AMAP.
 - La publication est une action explicite, distincte de la mise a jour des disponibilites.
 - Les commandes classiques sont toujours soumises a validation manuelle.
 - Un client ne peut plus modifier ni annuler sa commande depuis son lien securise une fois la preparation commencee; une modification client d'une commande acceptee impose une nouvelle validation.
@@ -237,13 +237,14 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 
 ## 9. Hypotheses et points ouverts
 
-- Les seuls emails V1 sont les publications de disponibilites adressees aux utilisateurs inscrits ayant donne leur opt-in; aucun email transactionnel n'est envoye. Le lien de suivi de commande est affiche immediatement apres confirmation, jamais delivre par email.
+- Les seuls emails V1 sont les publications de disponibilites consenties et les liens de definition ou reinitialisation de mot de passe. Aucun email de suivi, rappel ou changement de statut n'est envoye; le lien de suivi de commande est affiche immediatement apres confirmation, jamais delivre par email.
 - Un compte adherent AMAP est cree et invite par le maraicher.
 - La generation anticipee d'une commande AMAP intervient trois jours calendaires avant l'occurrence applicable.
 - Une publication email cible tous les utilisateurs inscrits dont l'opt-in est actif; les listes ou preferences supplementaires sont reportees.
 - **[OPEN QUESTION]** Le responsable de traitement doit confirmer avant mise en production que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
-- **[OPEN QUESTION]** Les documents UI divergent sur la propagation des modifications d'un marche ou d'une tournee vers les occurrences futures existantes. La politique V1 doit preciser si ces occurrences restent toujours independantes ou si seules les occurrences non personnalisees peuvent etre mises a jour apres confirmation explicite.
-- **[OPEN QUESTION]** La date limite AMAP et la limite de substitutions sont decrites tantot comme regles globales, tantot comme reglables par abonnement ou semaine. Le PRD conserve la limite V1 de deux substitutions et la date limite portee par l'abonnement; confirmer avant implementation si des exceptions par semaine sont requises.
+- Les occurrences deja generees restent independantes des modifications ulterieures de leur modele de marche ou tournee; toute correction est explicite et auditee.
+- La limite V1 de deux substitutions est globale et la date limite est portee par l'abonnement puis figee sur la commande; aucune surcharge hebdomadaire de ces parametres n'est admise.
+- Les validations juridiques, prestataires, hebergement et mentions reelles sont des gates de mise en production. Elles n'empechent pas le developpement ni les tests avec une configuration locale explicitement non productive.
 - Le dossier de preparation de cette validation est `rgpd-validation-pack.md`.
 
 ## 10. Evolutions envisagees

@@ -136,7 +136,7 @@ flowchart TD
 
 - **Binds:** API, web, customers, AMAP, admin
 - **Prevents:** comptes imposes aux clients classiques et liens de suivi donnant un acces plus large que la commande concernee.
-- **Rule:** Adonis Auth gere l'authentification et l'autorisation des administrateurs et adherents AMAP cote API. Les clients classiques n'ont pas de compte: chaque lien de suivi ou modification est un jeton opaque, expire et restreint a la ressource et aux actions autorisees.
+- **Rule:** Adonis Auth gere l'authentification et l'autorisation des administrateurs et adherents AMAP cote API. Les sessions web utilisent un cookie opaque `HttpOnly`, `Secure` en production et `SameSite=Lax`; toute mutation authentifiee par cookie applique une protection CSRF. Connexion et recuperation de mot de passe sont limitees par adresse IP et identifiant normalise, avec reponses non enumerables. Les clients classiques n'ont pas de compte: chaque lien de suivi ou modification est un jeton opaque, expire et restreint a la ressource et aux actions autorisees.
 
 ### AD-16 - Odoo en peripherie asynchrone [ADOPTED]
 
@@ -144,11 +144,11 @@ flowchart TD
 - **Prevents:** indisponibilite d'Odoo bloquant les operations du maraicher ou workflows metier delegues a Odoo.
 - **Rule:** L'application possede les workflows operationnels, AMAP et commandes. Le connecteur Odoo est differe jusqu'a l'audit de son instance; lorsqu'il existe, il est un adaptateur backend asynchrone, relancable et hors du chemin critique. La transaction metier ecrit aussi l'outbox; le worker livre au moins une fois, avec identifiant d'idempotence fournisseur et correspondances explicites entre objets applicatifs et Odoo.
 
-### AD-17 - Execution planifiee fiable [ASSUMPTION]
+### AD-17 - Execution planifiee fiable [ADOPTED]
 
 - **Binds:** API, AMAP, notifications, integrations
 - **Prevents:** generation de commandes ou notifications manquees, doublees ou executees concurremment.
-- **Rule:** `apps/api` possede les traitements planifies et asynchrones V1. Les jobs sont stockes et reclames atomiquement avec un verrou temporaire; un unique worker configure par environnement les execute. Chaque tentative est journalisee, idempotente et relancable apres echec. Le choix du runner est differe, mais il doit satisfaire ces contraintes avant le premier traitement AMAP, notification ou connecteur externe.
+- **Rule:** `apps/api` possede les traitements planifies et asynchrones V1 dans une file PostgreSQL. Un worker unique par environnement interroge la file au plus chaque minute, cree ou reclame atomiquement les travaux avec un verrou a expiration et reprend un travail apres perte du verrou. Les planifications memorisent leur derniere execution attendue et creent au demarrage les occurrences manquees, notamment le traitement AMAP de 06:00 `Europe/Paris`. Chaque tentative est journalisee, idempotente et relancable; un echec temporaire applique un backoff borne et un echec definitif reste visible pour reprise administrative.
 
 ### AD-18 - Mutations coherentes par aggregate [ASSUMPTION]
 
@@ -166,7 +166,7 @@ flowchart TD
 
 - **Binds:** AMAP, distribution, scheduling, API
 - **Prevents:** calculs incompatibles de jours recurrents, changement d'heure et droits de modification a la limite.
-- **Rule:** Les recurrents de marche, tournee et AMAP sont des dates locales `Europe/Paris`. Une date limite est un instant `Europe/Paris`; une modification est autorisee strictement avant cet instant et refusee a cet instant ou apres.
+- **Rule:** Les recurrents de marche, tournee et AMAP sont des dates locales `Europe/Paris`. La recurrence AMAP V1 est hebdomadaire et avance de sept jours calendaires apres livraison ou suspension; un solde nul ou un abonnement inactif n'engendre aucune nouvelle echeance. La compatibilite AMAP est un attribut explicite d'un mode de recuperation actif. Une date limite est un instant `Europe/Paris`; une modification est autorisee strictement avant cet instant et refusee a cet instant ou apres.
 
 ## Consistency Conventions
 
@@ -243,7 +243,6 @@ flowchart LR
 | OpenAPI generation/validation toolchain and API error/pagination conventions | Before the first API endpoint is implemented. |
 | Cloud provider, deployment topology and environments | A production availability, data residency or operating-cost requirement exists. |
 | Observability, backups, alerting and incident operations | The deployment topology is selected. |
-| Background job runner and event delivery mechanism | The Odoo audit or another use case requires asynchronous, scheduled or retryable execution. |
 | Odoo connector scope and implementation | The Odoo version, hosting, external API access, licence and existing product/customer data are audited. |
 | Data classification, retention and deletion policy | Personal-data and regulatory obligations are specified. |
 | Package manager, CI provider, test matrix and release versioning | The workspace is initialized and its delivery targets are selected. |

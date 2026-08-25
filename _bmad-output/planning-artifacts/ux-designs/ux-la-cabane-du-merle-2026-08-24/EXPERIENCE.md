@@ -198,7 +198,7 @@ Echec: si le brouillon a change, Lea recharge la revue avant de republier. Sans 
 4. Elle met a jour les disponibilites, choisit `Enregistrer` ou `Enregistrer et publier`, puis confirme le recapitulatif final.
 5. **Climax:** l'occurrence passe a `Terminee` et toute commande reportee reapparait `A preparer` dans sa nouvelle occurrence, avec son trace d'audit.
 
-Echec: une occurrence annulee ou une transition refusee reste non cloturable; l'ecran explique la cause et conserve les decisions deja confirmees.
+Echec: une occurrence annulee ne peut etre cloturee administrativement qu'apres resolution de toutes ses commandes; elle conserve alors le statut `Annulee` avec un horodatage de cloture. Une transition refusee conserve les decisions deja confirmees et explique la cause.
 
 ### Flux 6 - Suivre une commande avec un lien securise (Marie, avant son retrait)
 
