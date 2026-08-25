@@ -2,7 +2,7 @@
 title: PRD - Application de gestion pour maraicher bio V1
 status: final
 created: 2026-08-24
-updated: 2026-08-24
+updated: 2026-08-25
 ---
 
 # PRD - Application de gestion pour maraicher bio V1
@@ -83,6 +83,8 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 
 - **FR-001** L'administrateur doit pouvoir creer, modifier, activer et desactiver un produit.
 - **FR-002** Un produit doit contenir a minima son nom, une description optionnelle, son unite de reference et son prix unitaire.
+- **FR-002a** L'unite de reference doit provenir d'une liste controlee. Elle est modifiable seulement tant que le produit n'a ete utilise ni dans une commande, une publication, une composition AMAP ou un historique de preparation; apres usage, un changement de mode de vente impose de desactiver l'ancien produit et d'en creer un nouveau.
+- **FR-002b** La desactivation d'un produit le retire des nouveaux usages sans supprimer ni modifier les commandes, publications ou compositions AMAP historisees. La suppression physique n'est pas exposee en V1.
 - **FR-003** L'administrateur doit pouvoir definir la disponibilite d'un produit comme `Disponible`, `Selon disponibilite` ou `Indisponible`.
 - **FR-004** Une disponibilite doit pouvoir contenir une quantite estimee et permettre d'en choisir la visibilite client.
 - **FR-005** Le systeme doit permettre une quantite connue visible, connue masquee, ou non suivie.
@@ -107,6 +109,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-019a** L'inscription aux publications doit etre disponible depuis un formulaire public distinct de la commande. Elle collecte une adresse email, affiche la mention d'information versionnee et une case d'opt-in non pre-cochable. Une adresse n'est ajoutee qu'une fois; une nouvelle inscription apres retrait cree un nouvel evenement de consentement. Aucun email de double opt-in n'est envoye en V1.
 - **FR-019b** Un email de publication doit contenir l'identite de l'exploitation expedrice, une adresse de reponse, l'objet de la publication, un lien vers l'offre publique et un lien de desinscription individuel. Le consentement marketing ne conditionne jamais la commande ni son lien de suivi affiche a l'ecran.
 - **FR-019c** Une campagne doit conserver son contenu, sa publication source, le destinataire, le statut d'envoi et les echecs definitifs. Les echecs definitifs placent l'adresse en suppression; les echecs temporaires sont retentes au plus deux fois avant d'etre journalises comme echec.
+- **FR-019d** La creation d'une publication et son envoi email sont deux operations distinctes : une publication reussie reste active et consultable meme en cas d'echec total ou partiel de la campagne. Les echecs doivent etre consultables et ne bloquent ni la cloture d'une occurrence ni les autres operations.
 
 ### 6.3 Commandes classiques
 
@@ -128,6 +131,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-033** Les informations commerciales d'une commande historique ne doivent pas etre modifiees par une evolution du produit.
 - **FR-034** Apres confirmation, le client doit voir un lien securise et individuel permettant de consulter sa commande sans compte; aucun envoi email de ce lien n'est realise en V1.
 - **FR-035** Avant sa date limite, le client doit pouvoir modifier ou annuler sa commande via ce lien securise.
+- **FR-035a** Une modification client reste possible uniquement avant la date limite et tant que la commande n'est pas `Preparee`, `Livree` ou `Annulee`. La modification d'une commande `A preparer` la ramene a `A valider`, recalcule son montant indicatif depuis son snapshot et cree un diff consultable par l'administration avant sa nouvelle validation.
 - **FR-036** La date limite de modification doit etre parametree par le maraicher; la valeur initiale visee est la veille de la recuperation.
 - **FR-037** Apres la date limite, le client doit conserver un acces en lecture seule, tandis que l'administrateur conserve la capacite de modifier la commande.
 - **FR-038** Pour une commande preparee non recuperee, l'administrateur doit pouvoir l'annuler ou la reporter vers une nouvelle recuperation.
@@ -162,19 +166,24 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-057** La vue agregee doit distinguer la composition des paniers AMAP des produits commandables en complement.
 - **FR-058** La cloture d'une occurrence doit permettre de traiter les commandes restantes, mettre a jour les disponibilites et choisir entre enregistrer ou enregistrer et publier.
 - **FR-059** Une occurrence cloturee doit passer a `Terminee` et rester accessible dans l'historique.
+- **FR-059a** La cloture doit suivre un parcours guide : traitement explicite des commandes preparees non recuperees, mise a jour facultative des disponibilites, publication facultative, puis confirmation. Chaque decision confirmee est persistante; l'action finale revalide cote serveur que l'occurrence n'est pas deja terminee, qu'aucune commande bloquante ne reste et que les modifications de disponibilite ne sont pas en erreur.
 
 ### 6.6 AMAP
 
 - **FR-060** L'administrateur doit pouvoir creer et gerer les adherents AMAP et leurs comptes.
+- **FR-060a** Un adherent ne peut avoir qu'un abonnement AMAP actif a la fois. L'abonnement doit indiquer un type `panier complet` ou `demi-panier`, un retrait par defaut compatible et un solde initial strictement positif.
 - **FR-061** Un abonnement doit conserver l'adherent, la date d'inscription, le type de panier, le jour de retrait par defaut, le point de retrait par defaut, le nombre de paniers restants, la prochaine echeance, la date limite de modification et son statut.
 - **FR-062** L'inscription et la resiliation d'un abonnement AMAP ne sont pas accessibles en ligne en V1.
 - **FR-063** L'administrateur doit pouvoir definir une composition de panier et de demi-panier par periode.
+- **FR-063a** Une composition AMAP est definie pour une date ou semaine de livraison donnee. Pour chaque produit, les quantites de panier complet et de demi-panier sont explicites et independantes; l'absence du produit dans le demi-panier est distincte d'une quantite nulle. La composition est ordonnee et une ligne produit ne peut pas etre dupliquee sans justification metier.
 - **FR-064** La composition doit etre figee lorsqu'une commande AMAP est generee.
 - **FR-065** L'administrateur doit pouvoir definir les produits de remplacement disponibles pour une periode.
 - **FR-066** L'adherent doit pouvoir remplacer au plus deux elements de son prochain panier par des produits autorises avant la date limite.
 - **FR-067** Les substitutions doivent etre visibles dans la commande AMAP sans calcul automatique d'equivalence de prix ou de poids.
+- **FR-067a** Pour chaque substitution autorisee, le maraicher doit definir explicitement la quantite applicable au panier complet et, si le produit y est inclus, au demi-panier. Une substitution ne peut viser qu'un produit autorise pour cette semaine et ne peut pas elle-meme etre substituee.
 - **FR-068** Chaque jour a 06:00 `Europe/Paris`, le systeme genere une commande pour chaque echeance AMAP active situee a trois jours calendaires ou moins de son occurrence de retrait `Prevue`. La cle d'idempotence est l'abonnement et l'occurrence; une meme cle ne peut produire qu'une commande non annulee. L'absence d'occurrence selectable ou de composition active empeche la generation et cree une alerte a traiter par l'administration.
 - **FR-068a** A la generation, la composition, les remplacements autorises, le retrait, la date limite et l'abonnement sont figes dans la commande AMAP. Avant la date limite, suspension, cession, changement de retrait ou substitution modifient cette seule commande generee et sont audites; apres la date limite, seules les modifications administratives motivees sont admises. Toute modification d'abonnement apres generation ne modifie pas retroactivement la commande.
+- **FR-068b** Avant generation, les exceptions AMAP sont rattachees a l'abonnement et a son echeance datee, sans modifier les parametres permanents de l'abonnement. Apres generation, elles doivent modifier la commande correspondante si l'action reste autorisee, afin d'eviter tout ecart entre exception et commande operationnelle.
 - **FR-069** Une commande AMAP generee doit demarrer directement a `A preparer`, sans validation manuelle.
 - **FR-070** Le workflow nominal AMAP doit etre `A preparer -> Preparee -> Livree`.
 - **FR-071** L'adherent doit pouvoir consulter son prochain panier, sa composition, son retrait, la date limite et son nombre de paniers restants.
@@ -182,6 +191,7 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **FR-073** Apres la date limite, ces actions doivent etre bloquees cote adherent et rester possibles cote administration.
 - **FR-074** Une suspension ne doit pas consommer de panier; elle doit decaler l'echeance et etre historisee avec dates, auteur et motif optionnel.
 - **FR-075** Une cession doit conserver l'adherent titulaire, le beneficiaire et ses coordonnees; le panier est consomme sur l'abonnement du titulaire lorsqu'il est livre.
+- **FR-075a** Suspension et cession sont incompatibles pour une meme echeance. Activer une suspension annule ou neutralise toute cession en cours de facon explicite et auditee; une semaine suspendue ne permet ni retrait exceptionnel ni substitution active.
 - **FR-076** Le passage d'une commande AMAP a `Livree` doit consommer exactement une echeance et creer un evenement de consommation rattache a cette commande.
 - **FR-077** Une correction de statut doit preserver ou corriger de facon tracable le solde de paniers restants.
 - **FR-078** L'adherent doit pouvoir consulter l'historique de ses paniers, suspensions et cessions.
@@ -209,6 +219,8 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - **NFR-007 Disponibilite operationnelle** : l'absence de synchronisation avec un outil externe ne doit pas bloquer la prise, la preparation, la livraison ni la cloture des commandes.
 - **NFR-008 Droits des personnes** : l'administration doit disposer d'un processus documente pour repondre aux demandes d'acces, rectification, export et effacement ou anonymisation, sans detruire les obligations de conservation applicables. Une demande est enregistree, verifiee, attribuee a un administrateur et traitee sous 30 jours; l'export est fourni dans un format structure et lisible.
 - **NFR-009 Conservation** : les donnees de contact et de commande sont supprimees ou anonymisees trois ans apres la derniere commande ou interaction active. Les evenements de consentement sont conserves trois ans apres leur retrait. Les donnees personnelles presentes dans l'historique operationnel expire sont pseudonymisees, en preservant les dates, montants et agregats; la table de correspondance est supprimee. Les obligations legales de conservation applicables priment et doivent etre documentees par le responsable avant mise en production.
+- **NFR-010 Concurrence** : toute mutation d'une entite editable (produit, disponibilite, commande, publication, occurrence, composition ou exception AMAP) doit verifier la version attendue de l'etat consulte. En cas de version obsolete, le serveur refuse l'ecriture, le client informe clairement du conflit et propose de recharger; aucune modification ne peut ecraser silencieusement une modification concurrente.
+- **NFR-011 Accessibilite operationnelle** : les statuts et retours de sauvegarde combinent texte et signal visuel; les actions tactiles sont suffisamment dimensionnees; les formulaires, erreurs, dialogues et changements de statut sont utilisables au clavier et annoncables aux technologies d'assistance. La mise en page conserve les parcours sans defilement horizontal entre 320 px et 1440 px.
 
 ## 8. Regles metier transverses
 
@@ -216,9 +228,12 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - En cas de demandes superieures a une estimation, les commandes restent des demandes a validation : la quantite reelle, la substitution ou l'annulation est decidee lors de la preparation et est visible au client apres preparation.
 - La publication est une action explicite, distincte de la mise a jour des disponibilites.
 - Les commandes classiques sont toujours soumises a validation manuelle.
+- Un client ne peut plus modifier ni annuler sa commande depuis son lien securise une fois la preparation commencee; une modification client d'une commande acceptee impose une nouvelle validation.
 - Les prix, libelles, unites, quantites demandees et montant indicatif applicables a une commande sont figes au moment de sa creation; les quantites reelles et le montant final sont renseignes lors de la preparation sans modifier les valeurs initiales.
 - Une commande est toujours rattachee a une occurrence datee, y compris pour un retrait en lieu fixe.
 - L'abonnement AMAP reste rattache a l'adherent initial en cas de cession.
+- Les parametres permanents (produit, modele de recuperation, abonnement) sont distincts des occurrences et exceptions datees; aucune modification ne reecrit silencieusement un historique ou une commande deja generee.
+- La cloture d'une occurrence ne peut pas etre consideree comme une simple action d'interface : le serveur en revalide les invariants au dernier moment.
 
 ## 9. Hypotheses et points ouverts
 
@@ -227,6 +242,8 @@ L'adherent connecte consulte son prochain panier et son solde de paniers. Avant 
 - La generation anticipee d'une commande AMAP intervient trois jours calendaires avant l'occurrence applicable.
 - Une publication email cible tous les utilisateurs inscrits dont l'opt-in est actif; les listes ou preferences supplementaires sont reportees.
 - **[OPEN QUESTION]** Le responsable de traitement doit confirmer avant mise en production que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
+- **[OPEN QUESTION]** Les documents UI divergent sur la propagation des modifications d'un marche ou d'une tournee vers les occurrences futures existantes. La politique V1 doit preciser si ces occurrences restent toujours independantes ou si seules les occurrences non personnalisees peuvent etre mises a jour apres confirmation explicite.
+- **[OPEN QUESTION]** La date limite AMAP et la limite de substitutions sont decrites tantot comme regles globales, tantot comme reglables par abonnement ou semaine. Le PRD conserve la limite V1 de deux substitutions et la date limite portee par l'abonnement; confirmer avant implementation si des exceptions par semaine sont requises.
 - Le dossier de preparation de cette validation est `rgpd-validation-pack.md`.
 
 ## 10. Evolutions envisagees
