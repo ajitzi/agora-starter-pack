@@ -167,7 +167,9 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Regle metier transverse - occurrences** : rattacher toute commande a une occurrence datee, y compris un retrait fixe; distinguer les modeles permanents des occurrences et exceptions datees et ne jamais reecrire silencieusement l'historique.
 - **Regle metier transverse - AMAP** : conserver l'abonnement sur l'adherent titulaire lors d'une cession, distinguer abonnement permanent et exception datee, et garantir qu'une livraison consomme exactement une echeance de maniere tracable.
 - **Regle metier transverse - cloture** : traiter la cloture comme un workflow serveur persistant qui revalide au dernier moment le statut de l'occurrence, l'absence de commande bloquante et la validite des changements de disponibilite.
-- **Incoherence a trancher - FR-035a / regle transverse** : FR-035a autorise au client la modification d'une commande `A preparer` avant la limite en la ramenant a `A valider`, tandis que la regle transverse interdit toute modification ou annulation une fois la preparation commencee; definir un critere unique et testable distinguant, si necessaire, commande acceptee et preparation effectivement commencee.
+- **Decision produit - FR-035a / debut de preparation** : une commande `A preparer` reste modifiable par le client strictement avant sa limite tant que `preparationStartedAt` n'est pas renseigne; la modification la ramene a `A valider`. Des que la preparation effective commence, le lien client devient en lecture seule.
+- **Decision produit - checkout classique** : le nom et le telephone sont obligatoires, l'email est facultatif; l'administrateur active au moins un moyen de paiement prevu parmi `Especes`, `Carte`, `Cheque` et `Virement`, sans paiement en ligne V1.
+- **Decision produit - cloture d'une occurrence annulee** : apres resolution de toutes ses commandes, une occurrence annulee conserve le statut `Annulee` et recoit un horodatage de cloture; seule une occurrence executee cloturee passe a `Terminee`.
 - **Decision produit - FR-044 / FR-044a** : FR-044a prevaut comme filtre operationnel; seule une occurrence `Prevue` dont la date limite n'est pas depassee est selectable, tandis que les statuts `Terminee` et `Annulee` restent consultables mais non selectionnables.
 - **Decision produit - exception a FR-019** : l'email contenant un lien de reinitialisation de mot de passe est autorise en V1 comme unique email transactionnel; les autres emails transactionnels, rappels et notifications de statut restent interdits.
 - **Decision produit - gestion du consentement sans compte** : chaque email de publication contient un lien individuel permettant de consulter l'etat du consentement et de se desinscrire; apres retrait, une nouvelle inscription passe par le formulaire public et cree un nouvel evenement de consentement.
@@ -1572,3 +1574,752 @@ afin de planifier des livraisons selon l'ordre que je décide manuellement.
 **Quand** une opération non autorisée est demandée
 **Alors** l'API refuse sans effectuer d'écriture ni divulguer de données administratives
 **Et** l'interface explique l'état et ne propose que les actions encore autorisées.
+
+## Epic 4 : Traiter une commande classique de bout en bout
+
+Permettre au client de commander et suivre sans compte, puis au maraîcher de valider, préparer, livrer, reporter ou annuler jusqu'à la clôture de l'occurrence.
+
+### Story 4.1 : Composer un panier depuis l'offre publiée
+
+En tant que client,
+je veux choisir des produits et une récupération depuis l'offre active,
+afin de préparer une demande correspondant aux informations réellement publiées.
+
+**Critères d'acceptation :**
+
+**Étant donné** qu'une publication active existe
+**Quand** un visiteur ouvre l'URL publique unique
+**Alors** le catalogue affiche uniquement le dernier snapshot actif avec son identifiant et sa version
+**Et** consulter ou composer un panier ne nécessite aucun compte.
+
+**Étant donné** un produit actif dans le snapshot
+**Quand** il est présenté au client
+**Alors** son libellé, sa description, son unité, son prix et son statut proviennent exclusivement du snapshot
+**Et** aucune modification actuelle du catalogue ou des disponibilités ne change silencieusement les valeurs affichées.
+
+**Étant donné** un produit `Disponible` ou `Selon disponibilité`
+**Quand** le client ajoute une quantité
+**Alors** une quantité au `kg` accepte une valeur strictement positive avec jusqu'à trois décimales, tandis que `unité` et `botte` acceptent un entier strictement positif
+**Et** l'unité reste visible dans le contrôle et le récapitulatif.
+
+**Étant donné** une quantité estimée visible
+**Quand** le client demande une quantité supérieure
+**Alors** la demande n'est pas bloquée ni présentée comme réservée
+**Et** l'interface rappelle qu'elle reste soumise à validation et pourra être ajustée lors de la préparation.
+
+**Étant donné** un produit `Indisponible`
+**Quand** le catalogue est affiché
+**Alors** son statut reste compréhensible mais aucune quantité ne peut être ajoutée
+**Et** une quantité précédemment ajoutée est signalée et retirée explicitement après confirmation plutôt que conservée silencieusement.
+
+**Étant donné** le panier courant
+**Quand** le client ajoute, modifie ou retire une ligne
+**Alors** le montant indicatif est recalculé depuis les prix du snapshot, avec arrondi au centime par ligne puis totalisation
+**Et** les lignes conservent produit, libellé, unité, prix unitaire et quantité demandée du snapshot affiché.
+
+**Étant donné** les occurrences fournies par l'Epic 3
+**Quand** le client choisit une récupération
+**Alors** seules les occurrences `Prévue`, rattachées à un mode actif et strictement avant leur limite sont proposées
+**Et** les occurrences `Annulée`, `Terminée` ou arrivées exactement à leur limite sont exclues.
+
+**Étant donné** une occurrence de marché ou de tournée
+**Quand** elle est choisie
+**Alors** le panier conserve l'identifiant stable de l'occurrence datée, jamais seulement celui du modèle récurrent
+**Et** pour une tournée, le passage choisi appartient obligatoirement au snapshot ordonné de cette occurrence.
+
+**Étant donné** qu'aucune occurrence n'est sélectionnable
+**Quand** le client consulte son panier
+**Alors** la poursuite est bloquée avec une explication indiquant qu'aucune récupération n'est disponible
+**Et** l'écran propose un retour au catalogue ou le canal de contact de l'exploitation.
+
+**Étant donné** qu'une nouvelle offre devient active pendant la composition
+**Quand** le client tente de poursuivre avec l'ancien snapshot
+**Alors** le panier est marqué périmé et aucune future commande ne peut être créée depuis ce snapshot désormais historique
+**Et** l'interface propose de revoir la nouvelle offre sans remplacer silencieusement produits, prix ou quantités.
+
+**Étant donné** un rechargement ou une erreur réseau
+**Quand** le panier courant est restauré
+**Alors** il reste lié à la version du snapshot initial et chaque ligne est vérifiée avant poursuite
+**Et** aucune ligne invalide ou occurrence fermée n'est acceptée silencieusement.
+
+**Étant donné** le catalogue et le panier sur mobile
+**Quand** ils sont utilisés à partir de `320 px`, au clavier ou avec un lecteur d'écran
+**Alors** les `EntityCard`, `NumericInput`, statuts, erreurs et actions tactiles respectent le contrat UX
+**Et** l'avertissement sur les quantités estimatives et non réservées est visible avant la poursuite.
+
+### Story 4.2 : Confirmer une commande sans compte
+
+En tant que client,
+je veux transmettre mon panier et recevoir immédiatement un lien de suivi,
+afin de faire vérifier ma demande sans créer de compte.
+
+**Critères d'acceptation :**
+
+**Étant donné** les paramètres de commande
+**Quand** un administrateur configure les paiements prévus
+**Alors** il peut activer ou désactiver `Espèces`, `Carte`, `Chèque` et `Virement`, avec au moins une option active
+**Et** aucune option ne déclenche un paiement en ligne, un suivi de règlement ou une écriture comptable.
+
+**Étant donné** un panier courant et une occurrence sélectionnée
+**Quand** le client ouvre le checkout
+**Alors** une page verticale présente produits, récupération, nom, téléphone, email facultatif, paiement prévu, commentaire facultatif et récapitulatif
+**Et** l'inscription aux publications reste facultative, distincte et non précochée.
+
+**Étant donné** les coordonnées du client
+**Quand** le formulaire est validé
+**Alors** le nom et un téléphone valide sont obligatoires, tandis que l'email reste facultatif
+**Et** seuls les champs nécessaires à la commande, la récupération et au contact opérationnel sont collectés.
+
+**Étant donné** un téléphone correspondant à une fiche contact existante
+**Quand** la commande est créée
+**Alors** elle peut être rattachée à cette fiche sans imposer de compte ni exposer ses données précédentes au client
+**Et** les coordonnées fournies sont figées sur la commande indépendamment des corrections ultérieures de la fiche.
+
+**Étant donné** une soumission de checkout
+**Quand** l'API la traite
+**Alors** elle revalide atomiquement que le snapshot est toujours la publication active, que chaque ligne lui appartient et que l'occurrence est `Prévue` avant sa limite
+**Et** une publication remplacée, une occurrence fermée ou une ligne altérée bloque toute création partielle avec une erreur RFC 9457.
+
+**Étant donné** une demande valide
+**Quand** la transaction réussit
+**Alors** une commande de source `Web` est créée au statut `À valider` et rattachée à l'occurrence datée choisie
+**Et** une commande de marché conserve son occurrence de marché, tandis qu'une livraison conserve l'occurrence de tournée et son passage.
+
+**Étant donné** les lignes de la commande
+**Quand** elles sont persistées
+**Alors** chacune fige produit, libellé, unité, prix unitaire et quantité demandée depuis le snapshot affiché
+**Et** la commande conserve explicitement la référence et la version de ce snapshot sans dépendre du catalogue courant.
+
+**Étant donné** les lignes figées
+**Quand** le montant indicatif est calculé
+**Alors** chaque quantité demandée est multipliée par son prix unitaire, arrondie au centime par ligne, puis les lignes sont totalisées
+**Et** le montant est présenté comme indicatif et susceptible de varier selon les quantités préparées.
+
+**Étant donné** une commande créée
+**Quand** la transaction est validée
+**Alors** un jeton de suivi opaque et individuel est généré, seul son condensat est stocké et son périmètre est limité à cette commande
+**Et** le lien complet est affiché immédiatement sur la confirmation sans être envoyé par email ou SMS.
+
+**Étant donné** le lien nouvellement créé
+**Quand** le client l'ouvre
+**Alors** il peut déjà consulter en lecture seule le statut `À valider`, les coordonnées utiles, l'occurrence, les quantités demandées et le montant indicatif
+**Et** aucune autre commande ou donnée de la fiche contact n'est accessible.
+
+**Étant donné** la durée de vie du lien
+**Quand** la commande n'a jamais été livrée ni annulée
+**Alors** il expire 90 jours après sa création
+**Et** les futurs changements vers `Livrée` ou `Annulée` ramèneront son expiration à 30 jours après cet événement si cette échéance est antérieure.
+
+**Étant donné** une réponse réseau incertaine après soumission
+**Quand** le checkout est rejoué avec le même identifiant d'idempotence
+**Alors** l'API retourne la commande et le résultat initial sans créer de doublon
+**Et** le client peut retrouver la confirmation et son lien tant que la réponse idempotente est conservée.
+
+**Étant donné** une commande créée
+**Quand** les disponibilités courantes sont inspectées
+**Alors** aucune quantité n'est réservée, déduite ou modifiée automatiquement
+**Et** un événement d'audit conserve la source, l'occurrence, le snapshot et les valeurs créées.
+
+**Étant donné** le checkout à `320 px`, au clavier ou avec un lecteur d'écran
+**Quand** une erreur ou un succès survient
+**Alors** labels, champs obligatoires, résumé focusable, conservation des saisies, focus et annonces de statut respectent le contrat UX
+**Et** la confirmation met le lien de suivi en évidence sans promettre d'email transactionnel.
+
+### Story 4.3 : Consulter, modifier ou annuler sa commande
+
+En tant que client,
+je veux gérer ma commande depuis mon lien sécurisé dans les limites autorisées,
+afin de corriger ma demande avant sa préparation et suivre son état ensuite.
+
+**Critères d'acceptation :**
+
+**Étant donné** un lien actif, non expiré et non révoqué
+**Quand** le client l'ouvre
+**Alors** l'API limite la réponse à la commande associée au jeton et aux actions autorisées à cet instant
+**Et** le jeton n'est jamais renvoyé dans le corps, affiché dans l'historique ou écrit dans les logs.
+
+**Étant donné** un lien invalide, expiré, révoqué ou remplacé
+**Quand** il est ouvert
+**Alors** aucune donnée de commande, de contact ou d'occurrence n'est divulguée
+**Et** l'écran indique uniquement que le lien n'est plus utilisable et fournit le canal de contact de l'exploitation.
+
+**Étant donné** une commande `À valider` strictement avant sa limite
+**Quand** le client ouvre son suivi
+**Alors** il peut modifier ses quantités, sa récupération parmi les occurrences encore sélectionnables, son paiement prévu, son commentaire et ses coordonnées autorisées, ou annuler la commande
+**Et** les valeurs proposées restent fondées sur le snapshot commercial figé de cette commande.
+
+**Étant donné** une commande `À préparer` strictement avant sa limite et sans `preparationStartedAt`
+**Quand** le client soumet une modification
+**Alors** la commande revient atomiquement à `À valider` et son montant indicatif est recalculé depuis son snapshot
+**Et** un diff avant/après devient consultable par l'administration avant toute nouvelle acceptation.
+
+**Étant donné** une commande dont `preparationStartedAt` est renseigné
+**Quand** le client ouvre son lien avant ou après la limite
+**Alors** les actions de modification et d'annulation sont absentes et l'écran est en lecture seule
+**Et** il explique que la préparation a commencé et indique le canal de contact autorisé.
+
+**Étant donné** que l'instant courant atteint exactement la date limite ou la dépasse
+**Quand** le client tente une mutation
+**Alors** l'API la refuse même si le formulaire avait été ouvert auparavant
+**Et** le suivi reste consultable avec la date limite et une explication explicite.
+
+**Étant donné** une modification de lignes
+**Quand** la demande est validée
+**Alors** seules les lignes et prix présents dans le snapshot de la commande peuvent être utilisés, chaque quantité respecte son unité et le montant est arrondi par ligne puis totalisé
+**Et** une nouvelle publication ne remplace jamais silencieusement ce snapshot.
+
+**Étant donné** un changement de récupération
+**Quand** le client soumet une nouvelle occurrence
+**Alors** elle doit être `Prévue`, avant sa limite et compatible avec le type de récupération demandé
+**Et** un marché conserve son occurrence datée, tandis qu'une tournée conserve aussi le passage choisi dans son ordre figé.
+
+**Étant donné** une annulation client autorisée
+**Quand** elle est confirmée dans un `ConfirmDialog`
+**Alors** la commande passe à `Annulée`, son historique de statut est conservé et son lien reste lisible jusqu'à son expiration
+**Et** l'expiration est fixée à 30 jours après l'annulation sans modifier les disponibilités.
+
+**Étant donné** une commande `À valider` ou `À préparer`
+**Quand** le suivi est affiché
+**Alors** il montre les quantités demandées et le montant indicatif, jamais les ajustements de préparation en cours
+**Et** une commande `Préparée` ou `Livrée` montre les quantités réelles et le montant final lorsqu'ils existent.
+
+**Étant donné** une commande `Annulée`
+**Quand** son suivi est consulté
+**Alors** il affiche le statut d'annulation et le dernier montant applicable
+**Et** aucune action métier supplémentaire n'est proposée au client.
+
+**Étant donné** une commande modifiée depuis l'ouverture du suivi
+**Quand** le client soumet une `expectedVersion` obsolète
+**Alors** l'API refuse l'écriture sans écrasement et présente la nouvelle version
+**Et** les choix non soumis sont conservés autant que possible sans réappliquer automatiquement la mutation.
+
+**Étant donné** une réponse réseau incertaine
+**Quand** une modification ou annulation est rejouée avec le même identifiant d'idempotence
+**Alors** l'API retourne le résultat initial sans second changement de statut ni second événement
+**Et** l'interface vérifie l'état serveur avant toute nouvelle tentative.
+
+**Étant donné** une modification ou annulation réussie
+**Quand** la transaction est validée
+**Alors** l'événement d'audit conserve l'acteur représenté par le jeton client, l'horodatage, les valeurs avant/après et l'action
+**Et** aucun email transactionnel n'est envoyé.
+
+**Étant donné** le suivi sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** l'état ou les actions changent
+**Alors** statut, montant, limite, erreurs et confirmations sont annoncés sans dépendre de la couleur
+**Et** le focus, les formulaires et les dialogues respectent le contrat UX sans exposer de donnée d'une autre commande.
+
+### Story 4.4 : Créer et administrer les commandes et contacts
+
+En tant que maraîcher administrateur,
+je veux saisir ou corriger une commande et retrouver son contact,
+afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs opérationnelles.
+
+**Critères d'acceptation :**
+
+**Étant donné** un administrateur authentifié
+**Quand** il crée une commande depuis l'administration
+**Alors** il sélectionne un contact existant ou saisit un nom et un téléphone, choisit des lignes depuis une publication active, une occurrence et un paiement prévu
+**Et** la commande est créée avec la source `Administration`, le statut `À valider`, ses valeurs commerciales figées et son montant indicatif.
+
+**Étant donné** une occurrence `Prévue` dont la limite client est dépassée
+**Quand** l'administrateur y rattache explicitement une nouvelle commande
+**Alors** la création reste possible avec un motif obligatoire
+**Et** une occurrence `Annulée` ou `Terminée` reste interdite.
+
+**Étant donné** une commande créée depuis l'administration
+**Quand** la transaction réussit
+**Alors** elle reçoit le même lien sécurisé, les mêmes règles d'expiration et le même workflow qu'une commande web
+**Et** le lien est affiché à l'administrateur pour transmission hors application sans email automatique.
+
+**Étant donné** une liste de commandes
+**Quand** l'administrateur la consulte
+**Alors** il peut filtrer par statut, source, occurrence, période ou contact avec une pagination par curseur opaque
+**Et** chaque résultat affiche uniquement les coordonnées nécessaires à l'action opérationnelle.
+
+**Étant donné** un contact classique
+**Quand** l'administrateur ouvre sa fiche
+**Alors** il voit ses coordonnées opérationnelles et l'historique paginé des commandes associées, quelle que soit leur source
+**Et** cette fiche ne crée pas de compte ni d'accès authentifié pour le client.
+
+**Étant donné** une correction des coordonnées de la fiche contact
+**Quand** elle est enregistrée
+**Alors** les futures utilisations emploient les nouvelles valeurs
+**Et** les coordonnées figées sur les commandes historiques ne sont jamais réécrites.
+
+**Étant donné** une commande `À valider` ou `À préparer`
+**Quand** l'administrateur corrige ses lignes, son occurrence, ses coordonnées ou son paiement prévu
+**Alors** la correction utilise les valeurs autorisées par le snapshot de la commande et recalcule le montant indicatif
+**Et** toute modification après la limite exige un motif et conserve les valeurs avant/après.
+
+**Étant donné** une commande déjà `Préparée`, `Livrée` ou `Annulée`
+**Quand** une correction administrative est demandée
+**Alors** seules les corrections explicitement autorisées par son état sont proposées et un motif est obligatoire
+**Et** aucune transition de statut illégale ni réécriture de données commerciales figées n'est permise.
+
+**Étant donné** un lien client compromis ou perdu
+**Quand** l'administrateur en génère un nouveau avec confirmation
+**Alors** l'ancien jeton est immédiatement révoqué et un nouveau jeton opaque limité à la même commande est créé
+**Et** seul le nouveau lien permet ensuite d'accéder à la commande.
+
+**Étant donné** une commande modifiée depuis son ouverture
+**Quand** l'administrateur soumet une `expectedVersion` obsolète
+**Alors** l'API refuse toute correction sans écrasement silencieux
+**Et** l'écran affiche le conflit, recharge la commande et conserve autant que possible les choix non soumis.
+
+**Étant donné** une création, correction ou régénération de lien rejouée
+**Quand** le même identifiant d'idempotence est utilisé
+**Alors** le résultat initial est retourné sans seconde commande, seconde correction ou second jeton actif
+**Et** un contenu différent avec la même clé est refusé.
+
+**Étant donné** une action administrative significative
+**Quand** elle réussit
+**Alors** l'audit conserve acteur, horodatage, objet, action, avant/après et motif obligatoire
+**Et** aucun email transactionnel de commande ou de changement de statut n'est envoyé.
+
+**Étant donné** un adhérent, un utilisateur anonyme ou un compte désactivé
+**Quand** il tente d'accéder aux commandes ou contacts classiques
+**Alors** l'API refuse sans confirmer leur existence ni divulguer de donnée personnelle
+**Et** l'interface ne présente aucune destination correspondante.
+
+**Étant donné** les écrans de commandes et contacts sur mobile
+**Quand** l'administrateur filtre, consulte ou corrige
+**Alors** les listes utilisent des `EntityCard`, les filtres avancés un `FilterSheet` et les actions critiques une `StickyActionBar`
+**Et** labels, erreurs, données masquées, focus et dialogues respectent le contrat UX.
+
+### Story 4.5 : Piloter les commandes du jour
+
+En tant que maraîcher administrateur,
+je veux voir immédiatement les commandes et activités prioritaires,
+afin de savoir quoi traiter aujourd'hui et demain.
+
+**Critères d'acceptation :**
+
+**Étant donné** l'instant courant
+**Quand** l'écran `Aujourd'hui` est calculé
+**Alors** `aujourd'hui` désigne le jour civil courant et `demain` le jour civil suivant dans `Europe/Paris`
+**Et** une occurrence `imminente` commence dans les 48 heures suivant cet instant.
+
+**Étant donné** des commandes actives
+**Quand** l'administrateur ouvre l'écran
+**Alors** il voit en premier le nombre de commandes `À valider`, puis les commandes `À préparer` et `Préparée` liées aux activités proches
+**Et** les commandes `Annulée` ne sont jamais comptées comme travail restant.
+
+**Étant donné** plusieurs occurrences aujourd'hui ou demain
+**Quand** elles sont affichées
+**Alors** elles sont ordonnées par prochain début et chaque `OccurrenceCard` montre type, horaire, statut et progression
+**Et** l'occurrence ouvre son exécution datée, jamais le marché ou la tournée récurrente.
+
+**Étant donné** une occurrence contenant des commandes
+**Quand** sa progression est calculée
+**Alors** elle correspond au nombre de commandes `Livrée` sur le nombre total de commandes non annulées
+**Et** elle est affichée sous une forme textuelle telle que `5 / 7 livrées`, jamais uniquement comme une jauge.
+
+**Étant donné** une commande `À valider` depuis plus de 24 heures
+**Quand** l'écran est calculé
+**Alors** elle est signalée comme ancienne avec sa durée réelle
+**Et** le seuil utilise des instants absolus sans être altéré par un changement d'heure locale.
+
+**Étant donné** une disponibilité enregistrée mais non publiée depuis au moins 7 jours civils
+**Quand** l'administrateur ouvre `Aujourd'hui`
+**Alors** une alerte indique l'ancienneté et le nombre de changements non publiés
+**Et** elle mène vers la vue des disponibilités sans laisser croire qu'une publication a eu lieu.
+
+**Étant donné** des commandes créées depuis la dernière consultation enregistrée de l'administrateur
+**Quand** il ouvre l'écran
+**Alors** leur nombre est signalé comme nouveau et l'accès mène à la liste filtrée correspondante
+**Et** consulter cet indicateur met à jour le repère de lecture sans modifier les commandes.
+
+**Étant donné** qu'une file ou période ne contient aucun élément
+**Quand** l'écran est rendu
+**Alors** un état vide explicite indique la prochaine activité connue ou l'absence de travail
+**Et** aucun bloc vide, compteur ambigu ou message générique `Aucune donnée` n'est affiché.
+
+**Étant donné** une occurrence annulée ou un compte devenu invalide
+**Quand** les données sont rafraîchies
+**Alors** l'élément n'est plus présenté comme actionnable et son état est expliqué
+**Et** aucune donnée protégée mise en cache n'est conservée après un refus d'autorisation.
+
+**Étant donné** une réponse réseau lente ou en échec
+**Quand** l'écran charge ou se rafraîchit
+**Alors** les skeletons préservent sa structure, restent inertes et exposent `aria-busy`
+**Et** une erreur conserve les données fiables déjà affichées, indique leur ancienneté et propose une reprise.
+
+**Étant donné** l'administration mobile
+**Quand** l'écran est ouvert entre deux tâches
+**Alors** la prochaine action et son contexte apparaissent avant toute statistique secondaire
+**Et** la navigation basse expose `Aujourd'hui`, `Commandes`, `Préparer`, `Dispos` et `Plus` avec `aria-current="page"`.
+
+**Étant donné** une tablette paysage ou un desktop
+**Quand** le même écran est rendu
+**Alors** la hiérarchie devient une sidebar avec `Préparation` et `Disponibilités` sans changer le modèle mental
+**Et** un master/detail n'est utilisé que s'il évite réellement un aller-retour.
+
+**Étant donné** un utilisateur non administrateur
+**Quand** il tente d'accéder aux données quotidiennes
+**Alors** l'API refuse l'accès sans divulguer commandes, contacts ou occurrences
+**Et** seuls les administrateurs actifs peuvent consulter ces agrégats opérationnels.
+
+### Story 4.6 : Valider les commandes séquentiellement
+
+En tant que maraîcher administrateur,
+je veux traiter les nouvelles commandes l'une après l'autre,
+afin de les accepter, les ajuster ou les annuler sans revenir constamment à la liste.
+
+**Critères d'acceptation :**
+
+**Étant donné** des commandes au statut `À valider`
+**Quand** l'administrateur ouvre la file depuis `Aujourd'hui` ou `Commandes`
+**Alors** la première commande est affichée avec sa position `Commande n / total`, son client, son occurrence, ses lignes et son montant indicatif
+**Et** le total correspond à un instant de chargement stable sans déplacer automatiquement l'élément courant.
+
+**Étant donné** une commande créée ou modifiée par le client
+**Quand** elle est présentée à la validation
+**Alors** les valeurs courantes sont comparées à la dernière version précédemment acceptée lorsqu'elle existe
+**Et** tout diff de produits, quantités, récupération, coordonnées ou montant indicatif est explicite avant décision.
+
+**Étant donné** une commande nécessitant une correction
+**Quand** l'administrateur choisit `Ajuster`
+**Alors** il utilise les capacités de correction de la Story 4.4 puis revient sur la même commande mise à jour
+**Et** aucune acceptation n'est implicite après l'ajustement.
+
+**Étant donné** une commande `À valider` valide
+**Quand** l'administrateur active `Accepter la commande`
+**Alors** l'API revalide son état courant et la fait passer atomiquement à `À préparer`
+**Et** `preparationStartedAt` reste vide jusqu'au démarrage effectif de la préparation.
+
+**Étant donné** une commande `À valider` qui ne peut pas être servie
+**Quand** l'administrateur confirme son annulation
+**Alors** elle passe à `Annulée`, conserve son historique et son dernier montant applicable
+**Et** le motif est obligatoire si l'annulation intervient après la limite de l'occurrence.
+
+**Étant donné** une acceptation ou annulation en cours
+**Quand** l'action est envoyée
+**Alors** le déclencheur est désactivé au premier envoi et l'élément reste affiché jusqu'à la réponse versionnée
+**Et** la file avance automatiquement uniquement après un succès confirmé.
+
+**Étant donné** une action réussie
+**Quand** la commande suivante existe
+**Alors** elle devient l'élément courant et sa nouvelle position est annoncée
+**Et** si la file est terminée, un récapitulatif indique le nombre accepté, ajusté, annulé ou passé.
+
+**Étant donné** une commande que l'administrateur ne veut pas traiter immédiatement
+**Quand** il choisit `Passer`
+**Alors** aucune mutation n'est effectuée et la commande suivante est affichée
+**Et** la commande passée reste dans la file et peut être retrouvée avec `Précédente` ou lors d'un nouveau parcours.
+
+**Étant donné** qu'une commande est modifiée, annulée ou préparée pendant son affichage
+**Quand** l'administrateur soumet sa décision avec une `expectedVersion` obsolète
+**Alors** l'API refuse sans transition partielle, recharge le statut courant et explique le conflit
+**Et** seules les transitions encore autorisées restent proposées.
+
+**Étant donné** une réponse réseau incertaine
+**Quand** la même décision est rejouée avec son identifiant d'idempotence
+**Alors** le résultat initial est retourné sans seconde transition
+**Et** l'interface vérifie l'état serveur avant d'avancer dans la file.
+
+**Étant donné** une validation ou annulation réussie
+**Quand** la transaction est validée
+**Alors** l'événement d'audit conserve acteur, ancien et nouveau statut, valeurs ajustées et motif éventuel
+**Et** aucun email de confirmation ou changement de statut n'est envoyé au client.
+
+**Étant donné** la file sur mobile, tablette paysage ou au clavier
+**Quand** l'administrateur traite plusieurs commandes
+**Alors** la `StickyActionBar`, les actions précédente/suivante, la position et les annonces de statut restent accessibles
+**Et** le focus reste sur l'élément courant après erreur et se déplace de façon annoncée après succès.
+
+### Story 4.7 : Préparer une occurrence et ses commandes
+
+En tant que maraîcher administrateur,
+je veux connaître les volumes à préparer puis saisir les quantités réelles commande par commande,
+afin de finaliser exactement ce qui sera remis et son montant.
+
+**Critères d'acceptation :**
+
+**Étant donné** une occurrence contenant des commandes non annulées
+**Quand** l'administrateur ouvre sa préparation
+**Alors** une vue agrégée totalise les quantités demandées par produit et unité pour les commandes `À préparer`
+**Et** elle distingue les paniers AMAP des produits commandables en complément, même si la catégorie AMAP est vide avant l'Epic 5.
+
+**Étant donné** la vue agrégée
+**Quand** des commandes changent de statut ou de version
+**Alors** les volumes sont recalculés depuis l'état serveur sans modifier les commandes
+**Et** l'horodatage de fraîcheur, le nombre de commandes et la progression sont visibles.
+
+**Étant donné** une commande `À préparer` sans préparation commencée
+**Quand** l'administrateur ouvre sa saisie effective
+**Alors** `preparationStartedAt` est enregistré une seule fois dans la transaction et le lien client devient immédiatement non modifiable
+**Et** la commande reste au statut `À préparer` jusqu'à sa finalisation.
+
+**Étant donné** la file de préparation
+**Quand** l'administrateur la parcourt
+**Alors** elle affiche `Commande n / total`, précédente, suivante, passage temporaire et sortie explicite
+**Et** elle n'avance automatiquement qu'après l'enregistrement réussi de la commande courante.
+
+**Étant donné** une ligne vendue au `kg`
+**Quand** la quantité réelle est saisie
+**Alors** elle accepte une valeur positive ou nulle avec jusqu'à trois décimales, toujours accompagnée de `kg`
+**Et** une ligne à l'`unité` ou à la `botte` accepte uniquement un entier positif ou nul.
+
+**Étant donné** une demande qui ne peut pas être entièrement servie
+**Quand** l'administrateur saisit une quantité réelle inférieure ou nulle
+**Alors** la ligne demandée reste dans l'historique avec sa quantité initiale et sa quantité réelle
+**Et** aucune confirmation client supplémentaire n'est requise avant distribution.
+
+**Étant donné** une substitution
+**Quand** l'administrateur choisit un produit de remplacement
+**Alors** la ligne conserve le produit demandé et fige séparément le produit, libellé, unité, quantité et prix appliqué au remplacement
+**Et** le calcul final utilise ce prix appliqué figé, sauf écrasement manuel motivé du total.
+
+**Étant donné** une ligne avec quantité réelle et prix appliqué
+**Quand** son montant final est calculé
+**Alors** la quantité réelle est multipliée par le prix unitaire figé et arrondie au centime avant totalisation
+**Et** une quantité réelle nulle contribue zéro au total sans supprimer la ligne.
+
+**Étant donné** toutes les lignes préparées
+**Quand** le total est calculé
+**Alors** la commande conserve séparément montant indicatif, montant final calculé et détail des calculs
+**Et** toute évolution ultérieure du catalogue ne modifie aucun de ces montants.
+
+**Étant donné** qu'un ajustement commercial est nécessaire
+**Quand** l'administrateur écrase manuellement le montant final
+**Alors** un motif obligatoire est saisi et le montant calculé, le montant retenu, l'auteur et l'horodatage sont tous conservés
+**Et** le montant manuel prévaut sans effacer le calcul d'origine.
+
+**Étant donné** une préparation en cours
+**Quand** les quantités ou montants sont enregistrés sans finaliser
+**Alors** ils restent invisibles au client et une remarque interne peut être conservée sans être exposée
+**Et** l'interface distingue clairement `Enregistré` de `Préparation terminée`.
+
+**Étant donné** que chaque ligne possède une décision valide
+**Quand** l'administrateur active `Terminer la préparation`
+**Alors** l'API revalide la version, finalise quantités et montant dans une transaction et passe la commande à `Préparée`
+**Et** le lien client affiche dès lors les quantités réelles, substitutions et montant final en lecture seule.
+
+**Étant donné** qu'une ligne reste invalide ou indécise
+**Quand** la finalisation est demandée
+**Alors** aucune transition n'est effectuée et un résumé focusable mène aux éléments bloquants
+**Et** les valeurs valides déjà enregistrées sont conservées.
+
+**Étant donné** une modification concurrente ou une répétition réseau
+**Quand** une sauvegarde ou finalisation porte une version obsolète ou une clé rejouée
+**Alors** aucun écrasement ni double passage à `Préparée` n'a lieu
+**Et** l'interface reste sur la commande, recharge son état et ne propose que les transitions autorisées.
+
+**Étant donné** une saisie ou finalisation réussie
+**Quand** la transaction est validée
+**Alors** ajustements de lignes, quantités réelles, substitutions, montant calculé, écrasement et transition sont audités
+**Et** aucune disponibilité n'est décrémentée et aucun email n'est envoyé.
+
+**Étant donné** la préparation sur téléphone ou tablette paysage
+**Quand** les volumes et commandes sont traités
+**Alors** `NumericInput`, progression, unités, actions fixes, focus et annonces respectent le contrat UX
+**Et** la fin du parcours confirme le nombre préparé et propose directement la prochaine action disponible.
+
+### Story 4.8 : Livrer avec des transitions strictes
+
+En tant que maraîcher administrateur,
+je veux marquer une commande préparée comme livrée selon un workflow contrôlé,
+afin de refléter fidèlement sa remise au client sans transition incohérente.
+
+**Critères d'acceptation :**
+
+**Étant donné** une commande classique
+**Quand** une transition est demandée
+**Alors** le workflow nominal autorisé est `À valider → À préparer → Préparée → Livrée`
+**Et** toute transition absente de cette matrice est refusée sans écriture partielle.
+
+**Étant donné** une commande `Préparée` liée à une occurrence non annulée
+**Quand** l'administrateur confirme `Marquer comme livrée`
+**Alors** l'API revalide la version et la fait passer atomiquement à `Livrée` avec l'horodatage et l'auteur
+**Et** les quantités réelles, substitutions et montants final calculé et retenu restent inchangés.
+
+**Étant donné** une commande qui n'est pas `Préparée`
+**Quand** une livraison est demandée
+**Alors** l'opération est refusée avec une erreur RFC 9457 décrivant la transition invalide
+**Et** l'interface recharge l'état courant et ne présente que les actions encore autorisées.
+
+**Étant donné** une commande non livrée
+**Quand** une annulation administrative est demandée
+**Alors** elle est autorisée depuis `À valider`, `À préparer` ou `Préparée`, avec confirmation et motif lorsque requis
+**Et** une commande `Livrée` ne peut jamais être annulée par le workflow classique.
+
+**Étant donné** une commande `Annulée` ou `Livrée`
+**Quand** une modification de ligne, d'occurrence ou de statut nominal est tentée
+**Alors** l'API refuse l'opération sauf correction exceptionnelle explicitement autorisée par une règle ultérieure
+**Et** aucune action non disponible n'est rendue dans l'interface.
+
+**Étant donné** une livraison réussie
+**Quand** le client consulte son lien
+**Alors** il voit le statut `Livrée`, l'occurrence, les quantités réelles, les substitutions et le montant final en lecture seule
+**Et** le lien expire 30 jours après l'horodatage de livraison.
+
+**Étant donné** une commande livrée
+**Quand** les disponibilités ou le catalogue sont inspectés
+**Alors** aucune quantité ni aucun produit courant n'est modifié automatiquement
+**Et** l'historique commercial de la commande reste fondé sur ses snapshots.
+
+**Étant donné** une livraison soumise deux fois ou après une réponse réseau incertaine
+**Quand** le même identifiant d'idempotence est rejoué
+**Alors** le premier résultat est retourné sans second événement de livraison
+**Et** une nouvelle requête sur une commande déjà `Livrée` reste sans effet métier.
+
+**Étant donné** une commande modifiée concurremment
+**Quand** la livraison porte une `expectedVersion` obsolète
+**Alors** aucune transition n'a lieu et l'état courant est présenté
+**Et** le focus reste sur la commande avec une explication du conflit.
+
+**Étant donné** une livraison ou annulation réussie
+**Quand** la transaction est validée
+**Alors** l'historique de statuts et l'audit conservent acteur, ancien état, nouvel état, horodatage et motif éventuel
+**Et** aucun email ou notification de statut n'est envoyé.
+
+**Étant donné** la vue opérationnelle sur mobile
+**Quand** l'administrateur livre plusieurs commandes
+**Alors** l'action dominante reste accessible, se désactive au premier envoi et la progression textuelle de l'occurrence est mise à jour après succès
+**Et** statuts, confirmations, focus et annonces respectent le contrat UX.
+
+### Story 4.9 : Traiter les commandes non récupérées
+
+En tant que maraîcher administrateur,
+je veux annuler ou reporter une commande préparée non récupérée,
+afin de résoudre chaque reliquat sans perdre son historique.
+
+**Critères d'acceptation :**
+
+**Étant donné** une commande `Préparée` non marquée `Livrée`
+**Quand** l'administrateur la traite comme non récupérée
+**Alors** il doit choisir explicitement `Annuler` ou `Reporter`
+**Et** aucune commande ne disparaît de la file sans décision persistée.
+
+**Étant donné** le choix `Annuler`
+**Quand** l'administrateur confirme avec le motif requis
+**Alors** la commande passe à `Annulée`, conserve ses quantités réelles et son dernier montant final
+**Et** son lien reste lisible pendant 30 jours après l'annulation sans permettre de nouvelle action client.
+
+**Étant donné** le choix `Reporter`
+**Quand** l'administrateur sélectionne une nouvelle récupération
+**Alors** seules les occurrences futures `Prévue` et compatibles sont proposées, même si leur limite client est dépassée
+**Et** une occurrence `Annulée`, `Terminée` ou passée est refusée côté API.
+
+**Étant donné** une occurrence de tournée choisie pour le report
+**Quand** la commande est déplacée
+**Alors** un passage appartenant à l'ordre figé de cette occurrence est obligatoire
+**Et** un report vers un marché conserve l'identifiant de son occurrence datée.
+
+**Étant donné** un report prêt à être confirmé
+**Quand** le récapitulatif est affiché
+**Alors** il montre côte à côte récupération initiale, nouvelle récupération, dates, horaires et passage éventuel
+**Et** un motif est recueilli avant l'enregistrement.
+
+**Étant donné** un report valide
+**Quand** la transaction réussit
+**Alors** la commande conserve l'occurrence initiale dans son historique, adopte la nouvelle occurrence et revient à `À préparer` pour vérification
+**Et** l'auteur, l'horodatage, le motif et les deux récupérations sont persistés atomiquement.
+
+**Étant donné** une commande reportée précédemment préparée
+**Quand** elle revient dans la file de préparation
+**Alors** ses quantités réelles, substitutions et montant précédent restent disponibles comme valeurs de référence internes
+**Et** ils ne redeviennent visibles au client qu'après une nouvelle finalisation au statut `Préparée`.
+
+**Étant donné** que la préparation avait déjà commencé
+**Quand** la commande est reportée
+**Alors** son accès client reste en lecture seule et le report ne réouvre pas les droits de modification
+**Et** aucune nouvelle validation client n'est demandée.
+
+**Étant donné** une commande `Livrée`, `Annulée`, `À valider` ou `À préparer`
+**Quand** l'action de non-retrait est appelée
+**Alors** elle est refusée comme transition invalide
+**Et** aucune occurrence ni valeur de préparation n'est modifiée.
+
+**Étant donné** un report ou une annulation soumis concurremment
+**Quand** la version attendue est obsolète ou la clé d'idempotence est rejouée
+**Alors** une seule décision peut être appliquée et le résultat initial est retourné aux répétitions
+**Et** l'interface recharge l'état sans proposer d'action devenue invalide.
+
+**Étant donné** une décision réussie
+**Quand** la transaction est validée
+**Alors** changement de statut, occurrence, auteur, motif et valeurs avant/après sont audités
+**Et** aucune disponibilité n'est mise à jour et aucun email n'est envoyé.
+
+**Étant donné** la file des non-retraits sur mobile
+**Quand** l'administrateur traite plusieurs commandes
+**Alors** chaque `EntityCard` expose clairement client, ancienne récupération, montant et actions disponibles
+**Et** les confirmations, sélecteurs d'occurrence, focus et annonces respectent le contrat UX.
+
+### Story 4.10 : Clôturer une occurrence
+
+En tant que maraîcher administrateur,
+je veux clôturer une activité avec un parcours guidé et persistant,
+afin de terminer la journée sans laisser de commande ou de changement incohérent.
+
+**Critères d'acceptation :**
+
+**Étant donné** une occurrence non clôturée
+**Quand** l'administrateur ouvre sa clôture
+**Alors** `ClosingSummary` présente quatre étapes : commandes, disponibilités, publication facultative et confirmation
+**Et** il indique les décisions déjà persistées et les éléments encore bloquants.
+
+**Étant donné** l'étape `Commandes`
+**Quand** les commandes rattachées sont analysées
+**Alors** toute commande `À valider`, `À préparer` ou `Préparée` est bloquante tant qu'elle n'est pas livrée, annulée ou reportée vers une autre occurrence
+**Et** chaque commande `Préparée` non récupérée ouvre directement le choix `Annuler` ou `Reporter` de la Story 4.9.
+
+**Étant donné** qu'une commande est reportée
+**Quand** la décision est confirmée
+**Alors** elle cesse d'être bloquante pour l'occurrence source et apparaît `À préparer` dans la nouvelle occurrence
+**Et** son historique conserve les deux récupérations, le motif et l'auteur.
+
+**Étant donné** que toutes les commandes sont résolues
+**Quand** l'administrateur passe à l'étape `Disponibilités`
+**Alors** il peut ne rien changer ou enregistrer explicitement des modifications avec les règles de la Story 2.2
+**Et** aucune quantité n'est calculée ou déduite automatiquement à partir des ventes ou livraisons.
+
+**Étant donné** des modifications de disponibilités enregistrées
+**Quand** l'étape suivante est ouverte
+**Alors** l'administrateur choisit `Enregistrer` ou `Enregistrer et publier`
+**Et** la différence entre brouillon enregistré et offre publique reste explicite.
+
+**Étant donné** le choix `Enregistrer et publier`
+**Quand** la publication est demandée
+**Alors** le snapshot est créé avec les contrôles atomiques de la Story 2.3 avant la clôture finale
+**Et** une erreur de version ou de publication bloque la confirmation sans perdre les décisions déjà persistées.
+
+**Étant donné** une publication réussie avec campagne email facultative
+**Quand** Resend ou le worker rencontre ensuite un échec total ou partiel
+**Alors** le snapshot publié reste actif et la clôture peut continuer
+**Et** le résultat de campagne reste consultable et reprenable indépendamment.
+
+**Étant donné** le récapitulatif final
+**Quand** il est affiché
+**Alors** il présente les commandes livrées, annulées ou reportées, les changements de disponibilités, l'état de publication et les blocages éventuels
+**Et** l'action finale est indisponible tant qu'un blocage subsiste.
+
+**Étant donné** une occurrence exécutée sans blocage
+**Quand** l'administrateur confirme la clôture
+**Alors** le serveur revalide dans une transaction qu'elle n'est pas déjà clôturée, qu'aucune commande bloquante ne reste et qu'aucune modification de disponibilité n'est en erreur
+**Et** l'occurrence passe à `Terminée` avec `closedAt`, auteur et version mise à jour.
+
+**Étant donné** une occurrence `Annulée` dont toutes les commandes sont résolues
+**Quand** l'administrateur confirme sa clôture administrative
+**Alors** elle conserve le statut `Annulée` et reçoit `closedAt`, auteur et version mise à jour
+**Et** son historique distingue explicitement annulation et résolution finale.
+
+**Étant donné** une occurrence déjà clôturée
+**Quand** une seconde clôture est demandée
+**Alors** l'API retourne le résultat existant sans répéter transition, publication ou événements
+**Et** aucun changement ultérieur de commande ou disponibilité n'est autorisé par ce parcours.
+
+**Étant donné** qu'une commande ou une disponibilité change après l'ouverture du résumé
+**Quand** la confirmation utilise une version devenue obsolète
+**Alors** la clôture est refusée sans transition partielle et les nouveaux blocages sont affichés
+**Et** les décisions déjà confirmées lors des étapes précédentes restent persistées.
+
+**Étant donné** une clôture réussie
+**Quand** l'historique est consulté
+**Alors** l'occurrence, ses décisions, statuts de commandes, reports, changements de disponibilité et publication restent accessibles
+**Et** l'audit conserve acteur, horodatage, valeurs avant/après et résumé de clôture.
+
+**Étant donné** la clôture sur téléphone ou tablette
+**Quand** l'administrateur parcourt ou reprend les étapes
+**Alors** `ClosingSummary`, progression, actions fixes, confirmations, erreurs et focus respectent le contrat UX
+**Et** quitter puis revenir restaure l'étape et les décisions persistées sans demander de recommencer.
