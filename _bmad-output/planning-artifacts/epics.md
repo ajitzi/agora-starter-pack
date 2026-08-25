@@ -3139,3 +3139,246 @@ afin qu'elle puisse le récupérer sans transférer mon abonnement.
 **Quand** le bénéficiaire est saisi ou la cession confirmée
 **Alors** labels, champs obligatoires, résumé d'erreurs, consentement aux conséquences, focus et annonces respectent le contrat UX
 **Et** le prochain panier reflète immédiatement la cession après succès.
+
+## Epic 7 : Maîtriser le cycle de vie des données personnelles
+
+Permettre à l'exploitation de conserver les historiques nécessaires tout en appliquant information, droits, durées, suppression et anonymisation.
+
+### Story 7.1 : Publier l'information de confidentialité et le registre des traitements
+
+En tant que responsable de l'exploitation,
+je veux configurer et publier les informations relatives aux traitements de données,
+afin d'informer correctement les personnes et documenter mes obligations avant la production.
+
+**Critères d'acceptation :**
+
+**Étant donné** la configuration de confidentialité
+**Quand** le responsable la renseigne
+**Alors** elle exige le nom légal, l'adresse, le SIRET, le contact vie privée et le DPO ou la mention `Non applicable`
+**Et** aucune valeur fictive ou placeholder ne peut être validée pour la production.
+
+**Étant donné** les prestataires de la V1
+**Quand** ils sont enregistrés
+**Alors** l'hébergeur et Resend disposent chacun d'une raison sociale, d'un service, des pays de traitement, sous-traitants ultérieurs, références contractuelles et mesures de sécurité
+**Et** tout transfert hors EEE indique son mécanisme et ses garanties, ou confirme explicitement son absence.
+
+**Étant donné** le registre des traitements
+**Quand** il est consulté par un administrateur autorisé
+**Alors** il couvre au minimum commandes classiques, comptes et paniers AMAP, publications email, liens de suivi, journal d'audit et demandes de droits
+**Et** chaque entrée contient personnes et données, finalité, base légale validée, accès, durée, sort final et sous-traitants.
+
+**Étant donné** une durée ou base légale non encore validée
+**Quand** l'environnement est évalué pour une mise en production
+**Alors** le contrôle de préparation échoue en identifiant chaque décision manquante
+**Et** aucune valeur proposée dans le pack RGPD n'est considérée comme un avis juridique implicite.
+
+**Étant donné** une notice de confidentialité prête à publier
+**Quand** une version est validée
+**Alors** elle reçoit un identifiant, un numéro de version, une date d'effet, un auteur et une preuve de validation
+**Et** elle décrit responsable, données, finalités, bases, destinataires, transferts, durées, droits, contact et recours auprès de la CNIL.
+
+**Étant donné** une nouvelle version de notice
+**Quand** elle devient active
+**Alors** les futures collectes référencent cette version
+**Et** les événements de consentement, commandes ou demandes historiques conservent la version présentée au moment de leur collecte.
+
+**Étant donné** un formulaire collectant des coordonnées
+**Quand** il est affiché pour commande, adhésion AMAP, consentement ou demande de droits
+**Alors** l'information pertinente et le lien vers la notice active sont accessibles avant soumission
+**Et** les champs facultatifs sont explicitement marqués et aucune donnée sans finalité documentée n'est demandée.
+
+**Étant donné** l'inscription aux publications
+**Quand** la mention de consentement est affichée
+**Alors** elle reste distincte de la notice générale, versionnée, spécifique aux emails de disponibilité et non précochée
+**Et** refuser ce consentement n'empêche aucun autre parcours.
+
+**Étant donné** une modification du registre, d'un prestataire ou de la notice
+**Quand** elle est enregistrée
+**Alors** elle exige une `expectedVersion`, conserve les valeurs avant/après et produit un événement d'audit immuable
+**Et** aucune configuration historique n'est supprimée ou réécrite.
+
+**Étant donné** un utilisateur non administrateur
+**Quand** il tente d'accéder au registre interne ou aux contrats prestataires
+**Alors** l'accès est refusé sans divulguer leur contenu
+**Et** seule la notice publique et les informations destinées aux personnes restent accessibles.
+
+**Étant donné** la notice publique sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** elle est consultée depuis une collecte
+**Alors** sa structure de titres, ses liens, son focus et son agrandissement respectent le contrat UX
+**Et** elle reste lisible à `200 %` de texte et `400 %` de zoom sans défilement horizontal.
+
+### Story 7.2 : Traiter une demande de droits de bout en bout
+
+En tant qu'administrateur autorisé,
+je veux enregistrer, instruire et clôturer une demande relative aux données personnelles,
+afin de répondre de manière vérifiable dans le délai applicable.
+
+**Critères d'acceptation :**
+
+**Étant donné** une demande reçue par téléphone, courrier, email ou autre canal
+**Quand** l'administrateur l'enregistre
+**Alors** le dossier conserve date de réception, canal, droit demandé, identité déclarée, coordonnées de réponse et description
+**Et** son échéance interne est fixée à 30 jours après réception.
+
+**Étant donné** les droits pris en charge
+**Quand** le type de demande est choisi
+**Alors** il peut couvrir accès, rectification, export ou portabilité, effacement, anonymisation, opposition ou limitation
+**Et** chaque type affiche les étapes et restrictions qui lui sont applicables.
+
+**Étant donné** une identité non encore vérifiée
+**Quand** l'administrateur instruit le dossier
+**Alors** il collecte uniquement les éléments proportionnés nécessaires à la vérification
+**Et** aucune pièce ou donnée supplémentaire n'est exigée sans justification documentée.
+
+**Étant donné** une demande vérifiée
+**Quand** la recherche de données est lancée
+**Alors** elle localise les informations du demandeur dans comptes, contacts, commandes, AMAP, consentements, liens, campagnes, audit et demandes antérieures
+**Et** elle identifie aussi les sous-traitants concernés à partir du registre actif.
+
+**Étant donné** des données trouvées
+**Quand** l'administrateur consulte le résultat
+**Alors** elles sont regroupées par traitement, finalité, source, durée et action possible
+**Et** les données d'autres personnes sont exclues ou masquées.
+
+**Étant donné** une demande d'accès ou d'export approuvée
+**Quand** le package est généré
+**Alors** il contient un résumé lisible et des données structurées dans des formats documentés tels que JSON ou CSV
+**Et** les secrets, condensats, jetons, remarques internes non communicables et données de tiers sont exclus.
+
+**Étant donné** une demande de rectification approuvée
+**Quand** elle est exécutée
+**Alors** les données courantes concernées sont corrigées avec valeurs avant/après
+**Et** les snapshots historiques soumis à conservation ne sont pas réécrits; une rectification liée est ajoutée lorsque nécessaire.
+
+**Étant donné** une demande d'effacement ou d'anonymisation approuvée
+**Quand** elle est exécutée
+**Alors** les données sans obligation de conservation sont supprimées ou anonymisées via les ports de chaque domaine
+**Et** les dates, montants et agrégats nécessaires sont préservés sans conserver une identité directement exploitable.
+
+**Étant donné** une opposition ou limitation approuvée
+**Quand** elle est appliquée
+**Alors** les traitements concernés sont marqués comme bloqués pour leurs futurs usages
+**Et** une désinscription marketing devient immédiatement effective indépendamment des autres traitements contractuels.
+
+**Étant donné** une obligation légale ou un droit de tiers empêchant tout ou partie de la demande
+**Quand** l'administrateur prend sa décision
+**Alors** la restriction, sa base, les données conservées et la durée sont documentées
+**Et** le refus total ou partiel n'efface aucune autre action approuvée.
+
+**Étant donné** un dossier en cours
+**Quand** il est attribué ou change d'état
+**Alors** il suit `Reçue`, `À vérifier`, `En cours`, `En revue`, `Répondue` puis `Clôturée`, avec propriétaire et horodatages
+**Et** l'écran signale les dossiers approchant ou dépassant 30 jours.
+
+**Étant donné** les actions terminées
+**Quand** le dossier passe en revue
+**Alors** un second administrateur contrôle le résultat lorsque cette séparation est possible
+**Et** l'absence de second contrôleur est explicitement justifiée si l'exploitation ne dispose que d'un administrateur.
+
+**Étant donné** une réponse prête
+**Quand** elle est remise au demandeur par le canal convenu
+**Alors** la date, le canal, le contenu ou package remis et les éventuelles restrictions sont enregistrés
+**Et** aucun email automatique supplémentaire n'est requis; la remise peut rester une opération externe tracée.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucune action de droit n'est exécutée deux fois et aucun dossier n'est écrasé
+**Et** l'état courant est rechargé avant poursuite.
+
+**Étant donné** une action sur le dossier
+**Quand** elle réussit
+**Alors** l'audit conserve acteur, date, objet, action, avant/après et motif sans dupliquer le contenu personnel exporté
+**Et** seuls les administrateurs autorisés peuvent consulter ou traiter ces dossiers.
+
+**Étant donné** l'interface sur mobile ou au clavier
+**Quand** le dossier est recherché, instruit ou clôturé
+**Alors** étapes, échéance, erreurs, confirmations, focus et données masquées respectent le contrat UX
+**Et** les actions irréversibles utilisent un `ConfirmDialog` décrivant précisément leurs conséquences.
+
+### Story 7.3 : Appliquer conservation, anonymisation et pseudonymisation
+
+En tant que responsable de l'exploitation,
+je veux appliquer automatiquement les durées validées et anonymiser les historiques arrivés à échéance,
+afin de ne pas conserver les personnes plus longtemps que nécessaire tout en préservant les preuves utiles.
+
+**Critères d'acceptation :**
+
+**Étant donné** les politiques de conservation
+**Quand** elles sont activées
+**Alors** chaque traitement possède une durée validée, un événement de départ, une action finale et les obligations légales prioritaires
+**Et** aucune politique proposée mais non validée juridiquement ne peut s'exécuter en production.
+
+**Étant donné** les règles V1 proposées
+**Quand** elles sont confirmées par le responsable
+**Alors** contacts et commandes utilisent trois ans après la dernière commande ou interaction active, et les preuves de consentement trois ans après retrait
+**Et** toute durée différente imposée par une obligation comptable, fiscale, contractuelle ou probatoire est documentée et prévaut.
+
+**Étant donné** les dossiers de demandes de droits
+**Quand** leur durée après clôture est configurée
+**Alors** la valeur proposée de trois ans doit être explicitement validée avant activation
+**Et** les pièces de vérification d'identité peuvent avoir une durée plus courte selon la minimisation documentée.
+
+**Étant donné** un lien de suivi expiré ou révoqué
+**Quand** le nettoyage correspondant s'exécute
+**Alors** son jeton ou condensat inutilisable est supprimé selon la politique validée
+**Et** l'événement non secret prouvant expiration ou révocation peut rester dans l'audit applicable.
+
+**Étant donné** le job planifié de cycle de vie
+**Quand** il est réclamé par le worker PostgreSQL
+**Alors** il utilise un verrou temporaire, journalise chaque tentative et peut reprendre après interruption
+**Et** chaque personne ou lot possède une clé d'idempotence empêchant une seconde exécution des mêmes actions.
+
+**Étant donné** une exécution planifiée
+**Quand** le mode aperçu est lancé
+**Alors** il indique par traitement le nombre de sujets et enregistrements éligibles, les actions prévues et les blocages légaux
+**Et** aucune donnée n'est supprimée, anonymisée ou transmise à un sous-traitant.
+
+**Étant donné** une obligation légale, un litige ou une limitation active
+**Quand** un enregistrement arrive à sa durée normale
+**Alors** l'action automatique est bloquée pour le périmètre strictement nécessaire avec motif et date de réévaluation
+**Et** les données non couvertes par cette exception poursuivent leur cycle normal.
+
+**Étant donné** des coordonnées arrivées à échéance sans blocage
+**Quand** l'action finale s'exécute
+**Alors** les données directement identifiantes sont supprimées ou anonymisées dans comptes, contacts, commandes, AMAP, consentements et campagnes selon leur politique
+**Et** aucune donnée d'un tiers ou sujet non éligible n'est modifiée.
+
+**Étant donné** un historique opérationnel à préserver
+**Quand** il est pseudonymisé
+**Alors** dates, statuts, montants, quantités et agrégats nécessaires restent exploitables sous un identifiant non directement identifiant
+**Et** noms, téléphones, emails, adresses, bénéficiaires et commentaires personnels sont supprimés ou transformés selon la politique.
+
+**Étant donné** une table temporaire de correspondance nécessaire à la pseudonymisation
+**Quand** tous les contrôles du lot sont réussis et la durée autorisée terminée
+**Alors** cette table est supprimée de façon irréversible
+**Et** l'historique conservé ne permet plus à l'application de retrouver l'identité initiale.
+
+**Étant donné** une action impliquant Resend, l'hébergeur, une sauvegarde ou un autre sous-traitant
+**Quand** la suppression externe est requise
+**Alors** une tâche suivie conserve fournisseur, périmètre, demande, statut et preuve de réalisation
+**Et** la clôture du lot signale toute suppression externe non confirmée.
+
+**Étant donné** les sauvegardes contenant des données expirées
+**Quand** leur politique s'applique
+**Alors** leur durée, chiffrement, accès et expiration sont documentés, et une donnée restaurée repasse par les règles de suppression avant remise en service
+**Et** une restauration ne réactive pas silencieusement un consentement, compte ou jeton retiré.
+
+**Étant donné** une erreur pendant un lot
+**Quand** l'action d'un sujet ne peut pas être finalisée de façon cohérente
+**Alors** ses changements transactionnels sont annulés ou marqués pour reprise sans état partiellement anonymisé
+**Et** les autres sujets indépendants peuvent continuer sans masquer l'échec.
+
+**Étant donné** une exécution réussie
+**Quand** sa preuve est enregistrée
+**Alors** elle conserve politique et version, période, volumes, actions, exceptions, erreurs et auteur ou job
+**Et** l'audit évite de recopier les données personnelles supprimées.
+
+**Étant donné** les historiques exigés par `FR-079`
+**Quand** le cycle de vie est terminé
+**Alors** publications, statuts, reports, occurrences, suspensions, cessions et consommations restent consultables dans la mesure autorisée
+**Et** leur identité personnelle est supprimée ou pseudonymisée lorsque la conservation nominative n'est plus justifiée.
+
+**Étant donné** le tableau de suivi sur mobile ou au clavier
+**Quand** un aperçu, un lot ou une exception est consulté
+**Alors** progression, conséquences, blocages, erreurs, focus et confirmations respectent le contrat UX
+**Et** toute action irréversible reste inaccessible sans aperçu et confirmation explicite.
