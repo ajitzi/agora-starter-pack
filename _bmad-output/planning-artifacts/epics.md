@@ -2,6 +2,8 @@
 stepsCompleted:
   - step-01-validate-prerequisites
   - step-02-design-epics
+  - step-03-create-stories
+  - step-04-final-validation
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-la-cabane-du-merle-2026-08-24/prd.md
   - _bmad-output/planning-artifacts/architecture/architecture-la-cabane-du-merle-2026-08-24/ARCHITECTURE-SPINE.md
@@ -72,7 +74,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **FR-040** Apres report, une commande peut revenir a `A preparer` pour verification avant la nouvelle recuperation.
 - **FR-041** L'administrateur doit pouvoir consulter et corriger une fiche contact operationnelle et l'historique des commandes associees, sans imposer de compte au client classique.
 - **FR-041a** Tant que la date limite de l'occurrence n'est pas atteinte, une modification client recalcule le montant indicatif a partir du snapshot de commande et laisse une trace. Apres la date limite, seule l'administration peut modifier; toute modification de ligne, montant, occurrence ou statut exige un motif et cree un evenement d'audit.
-- **FR-041b** Lorsqu'une demande ne peut pas etre servie, l'administrateur doit pouvoir fixer une quantite reelle inferieure, nulle ou une substitution. Le client voit l'ajustement et son montant final lorsque la commande passe a `Preparee`; aucune validation client supplementaire n'est requise en V1. L'administrateur peut annuler la commande si l'ajustement ne permet pas la distribution.
+- **FR-041b** Lorsqu'une demande classique ne peut pas etre servie, l'administrateur doit pouvoir fixer une quantite reelle inferieure ou nulle, ou annuler la commande. Le client voit l'ajustement et son montant final lorsque la commande passe a `Preparee`; aucune validation client supplementaire n'est requise en V1. Les substitutions de produits sont reservees aux paniers AMAP.
 - **FR-042** L'administrateur doit pouvoir creer, modifier, activer et desactiver des modes de recuperation.
 - **FR-043** Un mode de recuperation doit pouvoir etre associe a un type fonctionnel : lieu fixe, marche ou tournee.
 - **FR-044** Toute recuperation selectable doit correspondre a une occurrence datee prevue, terminee ou annulee.
@@ -159,9 +161,12 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Decision technique - email et jobs V1** : utiliser Resend derriere un port de fournisseur pour l'envoi d'emails et une file persistante PostgreSQL, reclamee atomiquement par un worker unique par environnement, pour les campagnes et futurs traitements planifies.
 - **Temps et recurrence (AD-19, AD-20)** : calculer dates locales, occurrences, recurrents et limites dans `Europe/Paris`, autoriser une modification strictement avant la limite, puis stocker et echanger les instants en UTC avec offset ISO 8601.
 - **Deploiement et CI (AD-8, AD-10, AD-11)** : produire un artefact et une configuration runtime par app V1; faire posseder par `infra` environnements, deploiement, references de secrets, promotion et rollback; executer en CI compatibilite de stack, tests, conformite OpenAPI, frontieres, imports publics et absence de cycles.
-- **Decisions differees** : trancher avant le premier endpoint l'outillage OpenAPI et les conventions d'erreur/pagination; avant deploiement le cloud, la topologie, les environnements, la residence des donnees, l'observabilite, les sauvegardes, alertes et incidents; avant le premier job le runner; avant Odoo son audit et son scope; avant traitement de donnees la classification/conservation/suppression; a l'initialisation du workspace le gestionnaire de paquets, le fournisseur CI, la matrice de tests et le versionnement des releases.
+- **Decisions resolues** : utiliser `pnpm`, GitHub Actions, SHA Git avec tags SemVer, Redocly et `openapi-typescript`, RFC 9457, curseurs opaques, Resend et une file PostgreSQL avec worker unique par environnement.
+- **Deploiement VPS France** : exploiter un VPS physiquement heberge en France avec deux stacks Docker Compose isolees `staging` et `production`; choisir le fournisseur exact, OVHcloud ou equivalent, par une ADR bloquante verifiant localisation, DPA, acces, SLA, snapshots, stockage de sauvegarde et procedure de sortie avant tout provisionnement.
+- **Exploitation VPS** : isoler reseaux, volumes, secrets et ressources des deux stacks; n'exposer que le reverse proxy, garder PostgreSQL interne en version `18.6`, executer un worker unique par stack, externaliser des sauvegardes chiffrees en France, tester leur restauration et viser `RPO <= 24 h` et `RTO <= 4 h`.
+- **Decisions encore differees** : avant Odoo, confirmer son audit et son scope; avant traitement de donnees, valider juridiquement classification, conservation et suppression; lors de l'ADR VPS, choisir les outils precis de logs, metriques, alertes, incidents et sauvegardes respectant minimisation et residence attendue.
 - **Regle metier transverse - disponibilites** : traiter les disponibilites comme des estimations manuelles, jamais comme un stock comptable ou une reservation; commandes, preparations, livraisons et ventes externes ne les decrementent pas automatiquement.
-- **Regle metier transverse - demande non servie** : si la demande depasse l'estimation, conserver la commande comme demande a valider et laisser l'administration fixer quantite reelle, substitution ou annulation pendant la preparation, puis montrer l'ajustement au client seulement apres preparation.
+- **Regle metier transverse - demande non servie** : si la demande classique depasse l'estimation, conserver la commande comme demande a valider et laisser l'administration fixer une quantite reelle inferieure ou nulle, ou annuler pendant la preparation; les substitutions de produits restent exclusivement AMAP.
 - **Regle metier transverse - publication** : separer explicitement la sauvegarde du brouillon de disponibilites, la publication du snapshot et l'envoi facultatif de la campagne email; l'echec d'une campagne ne doit pas invalider une publication reussie.
 - **Regle metier transverse - commandes classiques** : soumettre toute commande classique a validation manuelle et figer a la creation prix, libelles, unites, quantites demandees et montant indicatif; conserver separement quantites reelles et montant final.
 - **Regle metier transverse - occurrences** : rattacher toute commande a une occurrence datee, y compris un retrait fixe; distinguer les modeles permanents des occurrences et exceptions datees et ne jamais reecrire silencieusement l'historique.
@@ -176,6 +181,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Question ouverte PRD 1** : avant mise en production, le responsable de traitement doit confirmer que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
 - **Decision produit - propagation des modeles** : les occurrences deja generees restent independantes; modifier un marche ou une tournee ne les reecrit jamais et toute correction d'une occurrence existante est explicite et auditee.
 - **Decision produit - regles AMAP V1** : la limite de deux substitutions est globale et la date limite est portee par l'abonnement puis figee sur la commande generee; aucune surcharge hebdomadaire de ces deux parametres n'est admise en V1.
+- **Decision produit - substitutions classiques** : une commande classique ne permet aucun produit de remplacement; `FR-041b` signifie ajuster la quantite reelle ou annuler, tandis que toute substitution de produit appartient exclusivement au parcours AMAP.
 - **Validation juridique RGPD 1/12** : renseigner et faire valider le nom legal, l'adresse et le SIRET du responsable de traitement, ainsi que le contact vie privee et les coordonnees du DPO ou la mention de non-applicabilite.
 - **Validation juridique RGPD 2/12** : identifier l'hebergeur et le fournisseur d'email, leur raison sociale, leur pays de traitement, leurs sous-traitants ulterieurs et leurs contrats de sous-traitance.
 - **Validation juridique RGPD 3/12** : documenter les destinataires internes autorises et confirmer l'absence de transfert hors EEE ou les mecanismes et garanties de chaque transfert.
@@ -230,7 +236,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **UX-DR37** Concevoir `Commandes` pour filtrer, consulter et traiter les commandes, avec filtres avances en `FilterSheet` sur mobile et detail simultane seulement aux largeurs utiles.
 - **UX-DR38** Concevoir la validation sequentielle avec position `Commande n / total`, precedent/suivant, passage temporaire, sortie explicite et avancement uniquement apres succes versionne.
 - **UX-DR39** Concevoir `Preparer` comme selection d'une occurrence par `OccurrenceCard`, puis afficher les besoins agreges en distinguant paniers AMAP et complements.
-- **UX-DR40** Concevoir la preparation sequentielle pour saisir quantites reelles, substitutions, montant et remarque sans retour a la liste, puis enchaîner vers livraison ou cloture.
+- **UX-DR40** Concevoir la preparation sequentielle classique pour saisir quantites reelles, montant et remarque sans retour a la liste, puis enchainer vers livraison ou cloture; les substitutions restent dans les ecrans AMAP.
 - **UX-DR41** Concevoir `Disponibilites` pour modifier rapidement le brouillon sans suggérer de reservation et afficher en permanence l'ecart entre sauvegarde et publication.
 - **UX-DR42** Concevoir `Publier les disponibilites` comme revue du diff, du message, de la version du brouillon, des canaux et du nombre de destinataires consentants avant confirmation.
 - **UX-DR43** Concevoir `Distribution` pour separer modeles recurrents de marche/tournee et occurrences datees, et ouvrir l'execution ou la cloture depuis l'occurrence.
@@ -339,14 +345,14 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **FR-034** : Epic 4 - remise d'un lien sécurisé de suivi sans compte.
 - **FR-035** : Epic 4 - modification ou annulation client avant échéance.
 - **FR-035a** : Epic 4 - règles de modification client selon délai et statut.
-- **FR-036** : Epic 4 - paramétrage de la date limite de modification.
+- **FR-036** : Epic 3 - paramétrage de la date limite lors de la planification des occurrences.
 - **FR-037** : Epic 4 - lecture seule client après la date limite.
 - **FR-038** : Epic 4 - traitement d'une commande préparée non récupérée.
 - **FR-039** : Epic 4 - traçabilité du report de récupération.
 - **FR-040** : Epic 4 - retour en préparation après report.
 - **FR-041** : Epic 4 - gestion de la fiche contact et de son historique.
 - **FR-041a** : Epic 4 - audit des modifications selon la date limite.
-- **FR-041b** : Epic 4 - gestion des quantités non servies et substitutions.
+- **FR-041b** : Epic 4 - gestion des quantités classiques non servies sans substitution de produit.
 - **FR-042** : Epic 3 - gestion des modes de récupération.
 - **FR-043** : Epic 3 - typage fonctionnel des modes de récupération.
 - **FR-044** : Epic 3 - rattachement des sélections à des occurrences datées.
@@ -364,7 +370,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **FR-054** : Epic 4 - traitement séquentiel avec progression.
 - **FR-055** : Epic 4 - accès direct aux actions opérationnelles de commande.
 - **FR-056** : Epic 4 - agrégation des quantités à préparer par occurrence.
-- **FR-057** : Epic 4 - distinction entre paniers AMAP et compléments.
+- **FR-057** : Epic 5 - intégration des paniers AMAP générés dans les volumes et compléments à préparer.
 - **FR-058** : Epic 4 - clôture avec mise à jour et publication facultative.
 - **FR-059** : Epic 4 - terminaison et historisation d'une occurrence clôturée.
 - **FR-059a** : Epic 4 - parcours guidé et revalidation serveur de la clôture.
@@ -425,7 +431,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre à l'administrateur d'organiser les lieux fixes, marchés et tournées sous forme de modèles récurrents et d'occurrences datées sélectionnables.
 
-**FR couvertes :** FR-042, FR-043, FR-044, FR-044a, FR-044b, FR-045, FR-046, FR-048, FR-049.
+**FR couvertes :** FR-036, FR-042, FR-043, FR-044, FR-044a, FR-044b, FR-045, FR-046, FR-048, FR-049.
 
 **Notes d'implémentation/UX :** distinguer visuellement et techniquement les modèles permanents des occurrences datées, calculer les limites dans `Europe/Paris` et ne proposer à la commande que les occurrences `Prévue` encore ouvertes. Prévoir une réorganisation de tournée utilisable sans glisser-déposer.
 
@@ -433,7 +439,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre au client de commander et suivre sans compte, et à l'administrateur de valider, préparer, ajuster, livrer, reporter ou annuler chaque commande jusqu'à la clôture de l'occurrence.
 
-**FR couvertes :** FR-009, FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-036, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-047, FR-050, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-057, FR-058, FR-059, FR-059a, FR-081.
+**FR couvertes :** FR-009, FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-047, FR-050, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-058, FR-059, FR-059a, FR-081.
 
 **Notes d'implémentation/UX :** figer les données commerciales à la création, séparer montant indicatif et montant final et sécuriser le suivi par un jeton limité à une commande. Optimiser les vues `Aujourd'hui`, validation et préparation pour le traitement séquentiel; rendre la clôture persistante, guidée et revalidée côté serveur.
 
@@ -441,7 +447,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre à l'administrateur de gérer les adhérents, abonnements, compositions et remplacements, puis de générer et traiter des commandes AMAP cohérentes et idempotentes.
 
-**FR couvertes :** FR-060, FR-060a, FR-061, FR-062, FR-063, FR-063a, FR-064, FR-065, FR-067a, FR-068, FR-068a, FR-068b, FR-069, FR-070, FR-076, FR-077, FR-078a, FR-078b.
+**FR couvertes :** FR-057, FR-060, FR-060a, FR-061, FR-062, FR-063, FR-063a, FR-064, FR-065, FR-067a, FR-068, FR-068a, FR-068b, FR-069, FR-070, FR-076, FR-077, FR-078a, FR-078b.
 
 **Notes d'implémentation/UX :** distinguer abonnement permanent, échéance, exception datée et commande générée; figer les données à la génération et garantir l'idempotence par abonnement et occurrence. Protéger les transitions et la consommation du solde par des transactions et contre-écritures auditables.
 
@@ -461,77 +467,147 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Notes d'implémentation/UX :** définir une politique exécutable de conservation et de pseudonymisation qui préserve les agrégats et obligations légales. Fournir aux administrateurs un processus traçable pour l'accès, la rectification, l'export et l'effacement, sans exposer de données personnelles inutiles.
 
+### Epic 8 : Garantir une mise en production accessible, exploitable et vérifiée
+
+**Objectif utilisateur :** garantir que la même version candidate peut être déployée, restaurée et utilisée sur les surfaces cibles, au clavier et avec les technologies d'assistance, avant sa mise en production.
+
+**FR couvertes :** aucune nouvelle FR; cet epic matérialise les exigences UX et non fonctionnelles transverses.
+
+**Notes d'implémentation/UX :** regrouper ici la stabilisation transverse, l'exploitabilité des environnements et la recette finale évite de rouvrir chaque epic métier à mesure que navigation, accessibilité et déploiement se durcissent. Cet epic se clôt sur une gate observable : une même candidate est déployée, restaurée et validée sur les parcours et surfaces cibles; il ne remplace pas les tests métier et n'est pas un simple milestone technique.
+
+**Décision de granularité :** le product owner accepte les stories cohésives possédant de nombreux scénarios lorsqu'elles livrent un seul aggregate ou parcours vertical complet; les scinder par couche produirait une capacité inutilisable ou une dépendance future. Les Stories 8.1 à 8.5 vérifient et durcissent les contrats déjà implémentés dans les epics métier, sans introduire un second design system ni redessiner les écrans; toute anomalie est corrigée dans le composant propriétaire avec un test de non-régression.
+
 ### Dépendances naturelles
 
-- L'Epic 1 fournit l'authentification, l'autorisation et l'audit transverses nécessaires aux Epics 2 à 7.
+- L'Epic 1 fournit l'authentification, l'autorisation et l'audit transverses nécessaires aux Epics 2 à 8.
 - L'Epic 2 fournit les produits, disponibilités et snapshots d'offre consommés par les commandes classiques et les compositions AMAP.
 - L'Epic 3 fournit les occurrences datées requises par les Epics 4, 5 et 6.
 - L'Epic 4 s'appuie sur les Epics 1 à 3 pour le parcours complet, mais ses capacités de traitement et de clôture servent aussi les commandes AMAP.
 - L'Epic 5 fournit les abonnements, compositions, échéances et commandes générées utilisés par l'Epic 6.
 - L'Epic 7 est transverse et doit être appliqué aux données et historiques produits par tous les autres epics.
+- L'Epic 8 vérifie transversalement l'expérience produite par les Epics 1 à 7 et ne remplace pas leurs critères métier.
 
 ## Epic 1 : Accéder à l'exploitation en sécurité
 
 Permettre aux administrateurs et aux adhérents AMAP d'accéder uniquement aux données et actions correspondant à leur rôle, avec des comptes, sessions et actions sensibles maîtrisés.
 
-### Story 1.1 : Initialiser un socle web et API déployable
+### Story 1.1 : Initialiser le workspace et ses frontières
 
 En tant que maraîcher administrateur,
-je veux disposer d'une application web responsive reliée à une API vérifiable,
-afin de pouvoir accéder à un socle fiable sur lequel les fonctions opérationnelles seront livrées.
+je veux disposer d'un socle de projet cohérent et reproductible,
+afin que les fonctions opérationnelles puissent être développées sans divergence d'architecture.
+
+**Exigences couvertes :** aucune FR directe; AD-1, AD-2, AD-3, AD-5, AD-6, AD-8, AD-10, AD-14.
 
 **Critères d'acceptation :**
 
-**Étant donné** le dépôt du projet avant initialisation
+**Étant donné** le dépôt avant initialisation
 **Quand** le workspace est installé avec `pnpm`
 **Alors** un unique `pnpm-lock.yaml` racine fait autorité
-**Et** les manifests épinglent Node.js `24.0.0`, Next.js `16.3.2`, AdonisJS `7.5.0`, Lucid `22.4.2`, OpenAPI `3.1.2` et Tamagui `2.7.7`.
+**Et** les manifests épinglent Node.js `24.0.0`, Next.js `16.3.2`, AdonisJS `7.5.0`, Lucid `22.4.2`, OpenAPI `3.1.2` et Tamagui `2.7.7`, tandis que l'image d'infrastructure épingle PostgreSQL `18.6`.
 
 **Étant donné** le structural seed défini par l'architecture
-**Quand** l'arborescence du workspace est inspectée
+**Quand** l'arborescence est inspectée
 **Alors** elle contient `apps/web`, `apps/api`, `apps/api/openapi`, `apps/api/app/adapters`, `packages/screens`, `packages/domains`, `packages/ui`, `packages/api-client`, `packages/core`, `packages/config`, `packages/testing` et `infra`
 **Et** elle ne contient pas d'`apps/mobile` déployable en V1.
 
-**Étant donné** les frontières architecturales du projet
+**Étant donné** les frontières architecturales
 **Quand** les contrôles locaux sont exécutés
-**Alors** ils refusent les imports profonds, cycles et directions interdites entre packages
-**Et** seul `packages/ui` importe directement Tamagui, tandis que les routes Next.js restent minces et que `packages/screens` n'importe aucun routeur.
+**Alors** ils refusent imports profonds, cycles et directions interdites entre packages
+**Et** seul `packages/ui` importe directement Tamagui, les routes Next.js restent minces et `packages/screens` n'importe aucun routeur.
+
+**Étant donné** les couches domaine et application
+**Quand** leurs imports sont analysés
+**Alors** elles ne dépendent ni d'HTTP, ni d'ORM, ni de framework d'interface
+**Et** la direction autorisée reste `apps → screens → domain/application → core`.
+
+**Étant donné** un nouveau besoin de données
+**Quand** une future story l'implémente
+**Alors** elle crée uniquement les tables, migrations et adaptateurs nécessaires à sa capacité
+**Et** cette story d'initialisation ne précrée aucune table métier spéculative.
+
+**Étant donné** les scripts racine
+**Quand** le développeur lance installation, types, lint, frontières, cycles, tests ou builds
+**Alors** chaque commande délègue aux packages concernés avec un code de sortie fiable
+**Et** les mêmes commandes peuvent être réutilisées sans comportement différent par la future CI.
+
+### Story 1.2 : Livrer le shell, le contrat API et la gate de notice
+
+En tant que maraîcher administrateur,
+je veux ouvrir une application responsive reliée à une API contractuelle et conforme avant collecte,
+afin de vérifier le socle utilisateur sans exposer de données personnelles sans information valide.
+
+**Exigences couvertes :** aucune FR directe; NFR-001, NFR-003, NFR-011; UX-DR1 à UX-DR17, UX-DR81, UX-DR82, UX-DR84, UX-DR87, UX-DR97, UX-DR99; AD-4, AD-5, AD-9, AD-13, AD-14.
+
+**Critères d'acceptation :**
 
 **Étant donné** le shell web initial
 **Quand** il est ouvert entre `320 px` et `1440 px`, au clavier ou avec une technologie d'assistance
-**Alors** il affiche un unique `main`, une hiérarchie de titres valide, un lien « Aller au contenu » visible au focus et aucun défilement horizontal
-**Et** le contenu reste utilisable à `200 %` de taille de texte et `400 %` de zoom.
+**Alors** il affiche un unique `main`, une hiérarchie de titres valide, un lien `Aller au contenu` visible au focus et aucun défilement horizontal
+**Et** le contenu reste utilisable à `200 %` de texte et `400 %` de zoom.
 
 **Étant donné** la configuration de `@project/ui`
 **Quand** le shell est rendu
-**Alors** les couleurs, typographies, espacements, rayons et indicateurs de focus de `UX-DR1` à `UX-DR14` proviennent exclusivement des tokens centralisés
-**Et** aucune valeur visuelle locale divergente n'est introduite dans l'écran.
+**Alors** couleurs, typographies, espacements, rayons et focus proviennent exclusivement des tokens centralisés
+**Et** aucune valeur visuelle locale divergente n'est introduite.
 
 **Étant donné** l'API AdonisJS initialisée
-**Quand** son endpoint de santé documenté est appelé
-**Alors** il retourne une réponse versionnée conforme au contrat OpenAPI `3.1.2` appartenant à `apps/api`
-**Et** un test de conformité vérifie l'accord entre le contrat, l'endpoint et `@project/api-client`.
+**Quand** son endpoint de santé versionné est appelé
+**Alors** il retourne une réponse conforme au contrat OpenAPI `3.1.2` appartenant à `apps/api`
+**Et** aucun détail interne, secret ou état métier n'est exposé.
+
+**Étant donné** le contrat OpenAPI
+**Quand** la vérification locale s'exécute
+**Alors** Redocly valide et lint le document avant qu'`openapi-typescript` génère les types de `@project/api-client`
+**Et** un test vérifie l'accord du contrat avec l'endpoint de santé et le client généré.
+
+**Étant donné** un écran ou formulaire collectant des données personnelles
+**Quand** il est rendu dans un environnement de production
+**Alors** une notice active, versionnée et juridiquement validée décrit au minimum responsable, finalité, base, durée ou critère, droits et contact
+**Et** la soumission est bloquée si cette notice n'est pas configurée.
+
+**Étant donné** une collecte autorisée
+**Quand** la personne soumet ses données
+**Alors** la version exacte de la notice affichée est enregistrée avec la collecte
+**Et** une version ultérieure ne réécrit pas cette preuve historique.
+
+**Étant donné** une erreur de validation ou une ressource absente
+**Quand** l'API répond
+**Alors** l'erreur suit RFC 9457 avec type, titre, statut, détail et identifiant de corrélation appropriés
+**Et** le shell présente une explication exploitable sans révéler d'information interne.
+
+### Story 1.3 : Automatiser la CI et produire les artefacts
+
+En tant que responsable de l'exploitation,
+je veux produire des artefacts immuables vérifiés automatiquement,
+afin que chaque changement intégré fournisse une candidate identifiable et reproductible.
+
+**Exigences couvertes :** aucune FR directe; NFR-007; AD-8, AD-10, AD-11.
+
+**Critères d'acceptation :**
 
 **Étant donné** les applications `web` et `api`
-**Quand** les commandes de build sont exécutées séparément
-**Alors** chaque application produit son propre artefact
-**Et** les secrets et configurations runtime restent fournis par l'environnement, sans être intégrés aux packages partagés ni aux artefacts.
+**Quand** leurs builds sont exécutés séparément
+**Alors** chacune produit son propre artefact immuable identifié par le SHA Git
+**Et** secrets et configurations runtime restent fournis par l'environnement sans être intégrés aux packages partagés ni aux artefacts.
 
-**Étant donné** une branche ou une pull request GitHub
-**Quand** le workflow GitHub Actions s'exécute avec Node.js `24.0.0` et `pnpm` en mode lockfile figé
-**Alors** il vérifie installation, types, lint, frontières d'import, absence de cycles, tests, conformité OpenAPI et builds
-**Et** une vérification en échec bloque l'intégration.
+**Étant donné** une release de production
+**Quand** elle est publiée
+**Alors** ses artefacts conservent leur SHA immuable et reçoivent en plus le même tag SemVer
+**Et** un tag ne peut pas désigner ultérieurement un artefact différent.
 
-**Étant donné** que cette story initialise uniquement le socle
-**Quand** les migrations et modèles sont inspectés
-**Alors** aucune table métier anticipant les futurs epics n'a été créée
-**Et** la story fonctionne et se vérifie sans dépendre d'une story ultérieure.
+**Étant donné** une branche ou pull request GitHub
+**Quand** GitHub Actions s'exécute avec Node.js `24.0.0` et `pnpm` en lockfile figé
+**Alors** il vérifie installation, types, lint, frontières, cycles, tests, conformité OpenAPI et builds
+**Et** tout échec bloque l'intégration.
 
-### Story 1.2 : Se connecter avec email et mot de passe
+### Story 1.4 : Se connecter avec email et mot de passe
 
 En tant qu'administrateur ou adhérent AMAP,
 je veux me connecter avec mon adresse email et mon mot de passe,
 afin d'accéder à l'espace correspondant à mon rôle.
+
+**Exigences couvertes :** FR-082a; NFR-001, NFR-003, NFR-011; UX-DR63, UX-DR68, UX-DR78, UX-DR81, UX-DR82, UX-DR86, UX-DR87, UX-DR90, UX-DR91, UX-DR93; AD-9, AD-13, AD-15, AD-18.
 
 **Critères d'acceptation :**
 
@@ -576,15 +652,17 @@ afin d'accéder à l'espace correspondant à mon rôle.
 **Et** aucun mot de passe, hash, secret de session ou cookie sensible n'est exposé par une réponse, un log ou `@project/api-client`.
 
 **Étant donné** que les règles détaillées de réinitialisation, révocation et autorisation arrivent dans les stories suivantes
-**Quand** la Story 1.2 est testée seule après la Story 1.1
+**Quand** la Story 1.4 est testée seule après les Stories 1.1 à 1.3
 **Alors** un administrateur provisionné et un adhérent de test peuvent chacun se connecter, atteindre leur shell et se déconnecter
 **Et** la story ne dépend d'aucune story future pour fournir ce parcours complet.
 
-### Story 1.3 : Réinitialiser son mot de passe par email
+### Story 1.5 : Réinitialiser son mot de passe par email
 
 En tant qu'administrateur ou adhérent AMAP,
 je veux recevoir un lien de réinitialisation à usage unique,
 afin de retrouver l'accès à mon espace sans intervention manuelle.
+
+**Exigences couvertes :** FR-082a; NFR-003, NFR-011; UX-DR68, UX-DR90, UX-DR91, UX-DR93; AD-15, AD-16, AD-17, AD-18.
 
 **Critères d'acceptation :**
 
@@ -638,11 +716,13 @@ afin de retrouver l'accès à mon espace sans intervention manuelle.
 **Alors** labels, aides, erreurs, résumé focusable, focus visible et annonces de statut respectent le socle accessible
 **Et** les saisies valides sont conservées après une erreur de validation.
 
-### Story 1.4 : Administrer les comptes et les sessions
+### Story 1.6 : Administrer les comptes et les sessions
 
 En tant qu'administrateur,
 je veux créer, désactiver ou réactiver des comptes et révoquer leurs sessions,
 afin de maîtriser qui peut accéder à l'exploitation.
+
+**Exigences couvertes :** FR-082, FR-082a; NFR-010, NFR-011; UX-DR23, UX-DR63 à UX-DR65, UX-DR68, UX-DR70, UX-DR72, UX-DR88, UX-DR89; AD-9, AD-13, AD-15, AD-18.
 
 **Critères d'acceptation :**
 
@@ -654,7 +734,7 @@ afin de maîtriser qui peut accéder à l'exploitation.
 **Étant donné** une adresse email non utilisée et un rôle autorisé
 **Quand** l'administrateur crée un compte
 **Alors** le compte est créé sans mot de passe exploitable et avec une version initiale
-**Et** le parcours de réinitialisation approuvé en Story 1.3 envoie le lien à usage unique permettant de définir le premier mot de passe.
+**Et** le parcours de réinitialisation approuvé en Story 1.5 envoie le lien à usage unique permettant de définir le premier mot de passe.
 
 **Étant donné** une adresse déjà associée à un compte
 **Quand** l'administrateur tente de créer un doublon
@@ -706,11 +786,13 @@ afin de maîtriser qui peut accéder à l'exploitation.
 **Alors** aucun email de notification dédié n'est envoyé
 **Et** seul le mécanisme de définition ou réinitialisation du mot de passe peut produire l'email exceptionnel approuvé.
 
-### Story 1.5 : Appliquer les rôles et le cloisonnement des données
+### Story 1.7 : Appliquer les rôles et le cloisonnement des données
 
 En tant qu'utilisateur authentifié,
 je veux que chaque action et donnée soit limitée à mon rôle et à mon identité,
 afin qu'aucune personne ne puisse accéder à un périmètre qui ne lui appartient pas.
+
+**Exigences couvertes :** FR-080, FR-082; NFR-003, NFR-010, NFR-011; UX-DR33 à UX-DR35, UX-DR68, UX-DR85, UX-DR95; AD-9, AD-13, AD-15.
 
 **Critères d'acceptation :**
 
@@ -720,7 +802,7 @@ afin qu'aucune personne ne puisse accéder à un périmètre qui ne lui appartie
 **Et** masquer un contrôle dans l'interface ne remplace jamais la vérification côté API.
 
 **Étant donné** un administrateur actif
-**Quand** il appelle les opérations de gestion des comptes et sessions livrées en Story 1.4
+**Quand** il appelle les opérations de gestion des comptes et sessions livrées en Story 1.6
 **Alors** l'API autorise les actions prévues pour le rôle `Administrateur`
 **Et** les réponses ne contiennent que les champs explicitement déclarés dans le contrat OpenAPI.
 
@@ -767,13 +849,15 @@ afin qu'aucune personne ne puisse accéder à un périmètre qui ne lui appartie
 **Étant donné** qu'un futur domaine ajoute des données clients ou AMAP
 **Quand** il utilise le contrat d'autorisation établi par cette story
 **Alors** il doit déclarer propriétaire, rôle et actions permises avant d'exposer une opération
-**Et** l'absence de cette déclaration est détectée par les contrôles automatisés, sans que la Story 1.5 dépende de ce futur domaine pour fonctionner.
+**Et** l'absence de cette déclaration est détectée par les contrôles automatisés, sans que la Story 1.7 dépende de ce futur domaine pour fonctionner.
 
-### Story 1.6 : Auditer et consulter les actions de sécurité
+### Story 1.8 : Auditer et consulter les actions de sécurité
 
 En tant qu'administrateur,
 je veux consulter un journal immuable des actions sensibles,
 afin de comprendre qui a modifié l'accès à l'exploitation et quand.
+
+**Exigences couvertes :** FR-083, FR-083a; NFR-006, NFR-011; UX-DR22, UX-DR55, UX-DR56, UX-DR80, UX-DR93, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -827,7 +911,7 @@ afin de comprendre qui a modifié l'accès à l'exploitation et quand.
 **Alors** il réutilise le port d'audit et le schéma d'événement définis par cette story dans sa transaction métier
 **Et** un test d'architecture refuse tout événement contenant un champ sensible ou toute mutation significative déclarée sans intégration d'audit.
 
-**Étant donné** les six stories de l'Epic 1
+**Étant donné** les huit stories de l'Epic 1
 **Quand** leur suite d'acceptation est exécutée
 **Alors** authentification, réinitialisation, comptes, sessions, autorisation et audit fonctionnent sans dépendre d'un epic futur
 **Et** les cinq FR de l'Epic 1 sont couvertes, les futurs epics n'ayant plus qu'à brancher leurs propres actions métier sur les contrats d'autorisation et d'audit.
@@ -841,6 +925,8 @@ Permettre au maraîcher de maintenir produits et disponibilités estimées, publ
 En tant que maraîcher administrateur,
 je veux créer, modifier, activer et désactiver mes produits,
 afin de maintenir un catalogue fiable sans altérer les usages historiques.
+
+**Exigences couvertes :** FR-001, FR-002, FR-002a, FR-002b; NFR-006, NFR-010, NFR-011; UX-DR18, UX-DR19, UX-DR23, UX-DR46, UX-DR64, UX-DR65; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -910,6 +996,8 @@ En tant que maraîcher administrateur,
 je veux enregistrer l'état et la quantité estimée de chaque produit sans les publier,
 afin de préparer une offre fiable sans créer de faux stock.
 
+**Exigences couvertes :** FR-003 à FR-007; NFR-001, NFR-006, NFR-010, NFR-011; UX-DR24, UX-DR28, UX-DR41, UX-DR57, UX-DR63, UX-DR64, UX-DR69, UX-DR72, UX-DR78; AD-7, AD-9, AD-12, AD-13, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** un produit nouvellement créé
@@ -947,6 +1035,11 @@ afin de préparer une offre fiable sans créer de faux stock.
 **Alors** l'état `Non enregistré` est explicite et l'action de sauvegarde reste distincte de toute future action de publication
 **Et** après succès, l'état devient `Enregistré` avec un retour annoncé sans laisser croire que le changement est public.
 
+**Étant donné** une disponibilité enregistrée
+**Quand** sa valeur diffère du dernier snapshot publié ou qu'aucun snapshot n'existe
+**Alors** `AvailabilityStatusControl` affiche aussi explicitement l'état `Non publié`
+**Et** il distingue ainsi `Non enregistré`, `Enregistré`, `Non publié` et `Conflit` sans confondre sauvegarde et publication.
+
 **Étant donné** plusieurs produits dans la vue des disponibilités
 **Quand** l'administrateur modifie puis enregistre l'un d'eux
 **Alors** seule la disponibilité ciblée est mutée et auditée avec ses valeurs avant/après
@@ -982,6 +1075,8 @@ afin de préparer une offre fiable sans créer de faux stock.
 En tant que maraîcher administrateur,
 je veux comparer mon brouillon à l'offre active puis publier une version immuable,
 afin que les clients consultent une offre fiable sans voir mes changements en cours.
+
+**Exigences couvertes :** FR-008, FR-009a, FR-010, FR-011, FR-013; NFR-001, NFR-006, NFR-010, NFR-011; UX-DR29, UX-DR42, UX-DR47, UX-DR58 à UX-DR60, UX-DR64, UX-DR69; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -1061,6 +1156,8 @@ En tant que maraîcher administrateur,
 je veux retrouver chaque offre publiée et son contenu exact,
 afin de comprendre ce qui était présenté aux clients à une date donnée.
 
+**Exigences couvertes :** FR-008, FR-012, FR-013; NFR-006, NFR-011; UX-DR18, UX-DR21, UX-DR26, UX-DR29, UX-DR55; AD-7, AD-9, AD-12, AD-13.
+
 **Critères d'acceptation :**
 
 **Étant donné** qu'aucune publication n'existe
@@ -1119,6 +1216,8 @@ En tant que visiteur,
 je veux choisir librement de recevoir les publications et pouvoir retirer ce choix,
 afin de maîtriser les communications envoyées à mon adresse email.
 
+**Exigences couvertes :** FR-016, FR-017, FR-019a; NFR-003, NFR-004, NFR-010, NFR-011; UX-DR49, UX-DR65, UX-DR67, UX-DR97, UX-DR98; AD-9, AD-13, AD-15, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** l'offre publique
@@ -1153,10 +1252,10 @@ afin de maîtriser les communications envoyées à mon adresse email.
 
 **Étant donné** la création ou réactivation d'un abonnement
 **Quand** l'inscription réussit
-**Alors** une confirmation est affichée immédiatement à l'écran
+**Alors** une confirmation et son lien individuel de gestion sont affichés immédiatement à l'écran pour que la personne puisse le conserver
 **Et** aucun email de double opt-in, de bienvenue ou de gestion dédié n'est envoyé en V1.
 
-**Étant donné** le lien individuel inclus dans un futur email de publication
+**Étant donné** le lien individuel remis à l'inscription ou inclus dans un futur email de publication
 **Quand** son détenteur ouvre la page de consentement
 **Alors** il peut consulter l'état actif de l'adresse masquée et retirer son consentement sans compte
 **Et** le jeton est opaque, limité à ce consentement, stocké sous forme de condensat et absent des logs ou historiques visibles.
@@ -1192,6 +1291,8 @@ En tant que maraîcher administrateur,
 je veux accompagner facultativement une publication d'un email aux abonnés consentants,
 afin de diffuser mon offre sans bloquer sa disponibilité ni contacter une personne retirée.
 
+**Exigences couvertes :** FR-014, FR-015, FR-018, FR-019, FR-019b, FR-019c, FR-019d; NFR-003, NFR-004, NFR-006, NFR-007, NFR-011; UX-DR42, UX-DR58 à UX-DR63, UX-DR93; AD-9, AD-13, AD-16, AD-17, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** la revue d'une offre prête à publier
@@ -1208,6 +1309,11 @@ afin de diffuser mon offre sans bloquer sa disponibilité ni contacter une perso
 **Quand** l'email est construit
 **Alors** il contient l'identité de l'exploitation, une adresse de réponse, l'objet et le message de la publication, le lien vers l'offre publique et un lien individuel de gestion du consentement
 **Et** il ne contient aucune donnée métier ou personnelle non nécessaire.
+
+**Étant donné** l'état d'un consentement ou d'une campagne
+**Quand** un client commande ou utilise son lien de suivi
+**Alors** aucune inscription, case marketing ou réussite de campagne n'est requise pour poursuivre
+**Et** le domaine campagne ne peut ni bloquer ni modifier la commande ou son suivi.
 
 **Étant donné** une campagne prête à être distribuée
 **Quand** ses destinataires sont matérialisés
@@ -1284,6 +1390,8 @@ En tant que maraîcher administrateur,
 je veux créer et maintenir mes modes de récupération,
 afin de disposer de lieux fixes, marchés et tournées clairement identifiés avant de les planifier.
 
+**Exigences couvertes :** FR-042, FR-043; NFR-006, NFR-010, NFR-011; UX-DR18, UX-DR23, UX-DR43, UX-DR64, UX-DR65; AD-7, AD-9, AD-12, AD-13, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** qu'aucun mode de récupération n'existe
@@ -1352,12 +1460,14 @@ En tant que maraîcher administrateur,
 je veux créer et générer des occurrences datées pour mes modes de récupération,
 afin de proposer uniquement des créneaux réellement planifiés et encore ouverts.
 
+**Exigences couvertes :** FR-036, FR-044, FR-044a, FR-044b; NFR-006, NFR-010, NFR-011; UX-DR27, UX-DR43, UX-DR64, UX-DR65, UX-DR69; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** un mode de récupération actif
 **Quand** l'administrateur crée une occurrence ponctuelle
 **Alors** il renseigne une date et heure de début, une date et heure de fin et une date et heure limite de commande dans `Europe/Paris`
-**Et** l'occurrence reçoit un identifiant opaque, une version et le statut initial `Prévue`.
+**Et** la limite est initialement préremplie à `20:00` le jour civil précédent dans `Europe/Paris`, reste modifiable, et l'occurrence reçoit un identifiant opaque, une version et le statut initial `Prévue`.
 
 **Étant donné** les horaires d'une occurrence
 **Quand** ils sont validés
@@ -1368,6 +1478,16 @@ afin de proposer uniquement des créneaux réellement planifiés et encore ouver
 **Quand** ses instants sont stockés ou exposés par l'API
 **Alors** les calculs sont effectués dans `Europe/Paris`, puis les instants sont stockés en UTC et sérialisés en ISO 8601 avec offset
 **Et** les tests couvrent les passages aux heures d'été et d'hiver ainsi que l'instant exact de la limite.
+
+**Étant donné** un mode de récupération actif
+**Quand** l'administrateur crée une règle récurrente
+**Alors** il définit fréquence, jours applicables, horaires locaux, période d'activité et limite préremplie à `20:00` la veille dans `Europe/Paris`
+**Et** la règle reçoit un identifiant opaque, une version et un état actif ou inactif sans créer immédiatement d'occurrence.
+
+**Étant donné** une règle récurrente existante
+**Quand** l'administrateur modifie sa fréquence, ses jours, ses horaires, sa période ou son état avec la version attendue
+**Alors** la nouvelle version s'applique uniquement aux prochains aperçus et générations
+**Et** aucune occurrence déjà générée n'est créée, supprimée ou réécrite silencieusement.
 
 **Étant donné** une règle récurrente active
 **Quand** l'administrateur demande un aperçu jusqu'à 90 jours à l'avance
@@ -1434,6 +1554,8 @@ afin de proposer uniquement des créneaux réellement planifiés et encore ouver
 En tant que maraîcher administrateur,
 je veux configurer mes marchés récurrents et générer leurs dates,
 afin de planifier les retraits au marché sans ressaisir chaque semaine.
+
+**Exigences couvertes :** FR-045, FR-046; NFR-006, NFR-010, NFR-011; UX-DR27, UX-DR43, UX-DR64; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -1502,6 +1624,8 @@ afin de planifier les retraits au marché sans ressaisir chaque semaine.
 En tant que maraîcher administrateur,
 je veux configurer mes tournées et ordonner leurs points de passage,
 afin de planifier des livraisons selon l'ordre que je décide manuellement.
+
+**Exigences couvertes :** FR-048, FR-049; NFR-006, NFR-010, NFR-011; UX-DR32, UX-DR43, UX-DR64, UX-DR69, UX-DR72, UX-DR92; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -1585,6 +1709,8 @@ En tant que client,
 je veux choisir des produits et une récupération depuis l'offre active,
 afin de préparer une demande correspondant aux informations réellement publiées.
 
+**Exigences couvertes :** FR-009a, FR-020, FR-031a; NFR-001, NFR-011; UX-DR24, UX-DR27, UX-DR47, UX-DR64, UX-DR73; AD-9, AD-13, AD-14.
+
 **Critères d'acceptation :**
 
 **Étant donné** qu'une publication active existe
@@ -1653,6 +1779,8 @@ En tant que client,
 je veux transmettre mon panier et recevoir immédiatement un lien de suivi,
 afin de faire vérifier ma demande sans créer de compte.
 
+**Exigences couvertes :** FR-009, FR-019b, FR-020, FR-021, FR-023, FR-030, FR-031a, FR-033, FR-034, FR-047, FR-050; NFR-003, NFR-005, NFR-006, NFR-011; UX-DR48 à UX-DR50, UX-DR63, UX-DR74, UX-DR90, UX-DR91, UX-DR97; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** les paramètres de commande
@@ -1698,7 +1826,7 @@ afin de faire vérifier ma demande sans créer de compte.
 **Étant donné** une commande créée
 **Quand** la transaction est validée
 **Alors** un jeton de suivi opaque et individuel est généré, seul son condensat est stocké et son périmètre est limité à cette commande
-**Et** le lien complet est affiché immédiatement sur la confirmation sans être envoyé par email ou SMS.
+**Et** le lien complet est affiché immédiatement avec le message explicite `Aucun email transactionnel ne sera envoyé`, sans envoi par email ou SMS.
 
 **Étant donné** le lien nouvellement créé
 **Quand** le client l'ouvre
@@ -1708,7 +1836,7 @@ afin de faire vérifier ma demande sans créer de compte.
 **Étant donné** la durée de vie du lien
 **Quand** la commande n'a jamais été livrée ni annulée
 **Alors** il expire 90 jours après sa création
-**Et** les futurs changements vers `Livrée` ou `Annulée` ramèneront son expiration à 30 jours après cet événement si cette échéance est antérieure.
+**Et** un futur passage vers `Livrée` ou `Annulée` remplace cette règle par une expiration exactement 30 jours après l'événement, même si cette nouvelle échéance est postérieure au quatre-vingt-dixième jour après création.
 
 **Étant donné** une réponse réseau incertaine après soumission
 **Quand** le checkout est rejoué avec le même identifiant d'idempotence
@@ -1731,6 +1859,8 @@ En tant que client,
 je veux gérer ma commande depuis mon lien sécurisé dans les limites autorisées,
 afin de corriger ma demande avant sa préparation et suivre son état ensuite.
 
+**Exigences couvertes :** FR-025, FR-032a, FR-035, FR-035a, FR-037, FR-041a; NFR-005, NFR-006, NFR-010, NFR-011; UX-DR23, UX-DR51, UX-DR64 à UX-DR67, UX-DR74, UX-DR75, UX-DR95, UX-DR96; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** un lien actif, non expiré et non révoqué
@@ -1742,6 +1872,11 @@ afin de corriger ma demande avant sa préparation et suivre son état ensuite.
 **Quand** il est ouvert
 **Alors** aucune donnée de commande, de contact ou d'occurrence n'est divulguée
 **Et** l'écran indique uniquement que le lien n'est plus utilisable et fournit le canal de contact de l'exploitation.
+
+**Étant donné** un lien de suivi actif
+**Quand** la commande est consultée
+**Alors** l'écran affiche sa date d'expiration courante et l'événement qui la détermine
+**Et** cette validité correspond à 90 jours après création tant que la commande n'est jamais livrée ou annulée, puis à 30 jours après livraison ou annulation.
 
 **Étant donné** une commande `À valider` strictement avant sa limite
 **Quand** le client ouvre son suivi
@@ -1773,10 +1908,15 @@ afin de corriger ma demande avant sa préparation et suivre son état ensuite.
 **Alors** elle doit être `Prévue`, avant sa limite et compatible avec le type de récupération demandé
 **Et** un marché conserve son occurrence datée, tandis qu'une tournée conserve aussi le passage choisi dans son ordre figé.
 
-**Étant donné** une annulation client autorisée
+**Étant donné** une commande `À valider` ou `À préparer` avant sa limite et sans `preparationStartedAt`
 **Quand** elle est confirmée dans un `ConfirmDialog`
 **Alors** la commande passe à `Annulée`, son historique de statut est conservé et son lien reste lisible jusqu'à son expiration
 **Et** l'expiration est fixée à 30 jours après l'annulation sans modifier les disponibilités.
+
+**Étant donné** une commande ayant atteint sa limite ou dont `preparationStartedAt` est renseigné
+**Quand** le client tente de l'annuler
+**Alors** l'API refuse l'opération et conserve le statut courant
+**Et** le suivi explique la raison et indique le canal de contact autorisé.
 
 **Étant donné** une commande `À valider` ou `À préparer`
 **Quand** le suivi est affiché
@@ -1808,11 +1948,13 @@ afin de corriger ma demande avant sa préparation et suivre son état ensuite.
 **Alors** statut, montant, limite, erreurs et confirmations sont annoncés sans dépendre de la couleur
 **Et** le focus, les formulaires et les dialogues respectent le contrat UX sans exposer de donnée d'une autre commande.
 
-### Story 4.4 : Créer et administrer les commandes et contacts
+### Story 4.4 : Créer une commande depuis l'administration
 
 En tant que maraîcher administrateur,
-je veux saisir ou corriger une commande et retrouver son contact,
-afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs opérationnelles.
+je veux saisir une commande reçue hors du web,
+afin de l'intégrer au même cycle de traitement qu'une commande client.
+
+**Exigences couvertes :** FR-021, FR-022, FR-023, FR-030, FR-034; NFR-003, NFR-005, NFR-006; UX-DR23, UX-DR65, UX-DR96; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18.
 
 **Critères d'acceptation :**
 
@@ -1831,6 +1973,26 @@ afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs op
 **Alors** elle reçoit le même lien sécurisé, les mêmes règles d'expiration et le même workflow qu'une commande web
 **Et** le lien est affiché à l'administrateur pour transmission hors application sans email automatique.
 
+**Étant donné** une création rejouée
+**Quand** le même identifiant d'idempotence est utilisé
+**Alors** le résultat initial est retourné sans seconde commande
+**Et** un contenu différent avec la même clé est refusé.
+
+**Étant donné** une création administrative réussie
+**Quand** son audit est enregistré
+**Alors** il conserve acteur, horodatage, objet, source, valeurs créées et motif obligatoire après limite
+**Et** aucun email transactionnel n'est envoyé.
+
+### Story 4.5 : Consulter les commandes et les contacts classiques
+
+En tant que maraîcher administrateur,
+je veux retrouver les commandes et leurs contacts opérationnels,
+afin de répondre aux demandes et préparer les corrections nécessaires.
+
+**Exigences couvertes :** FR-041; NFR-003, NFR-011; UX-DR18, UX-DR22, UX-DR26, UX-DR37, UX-DR95; AD-9, AD-13, AD-15.
+
+**Critères d'acceptation :**
+
 **Étant donné** une liste de commandes
 **Quand** l'administrateur la consulte
 **Alors** il peut filtrer par statut, source, occurrence, période ou contact avec une pagination par curseur opaque
@@ -1846,15 +2008,50 @@ afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs op
 **Alors** les futures utilisations emploient les nouvelles valeurs
 **Et** les coordonnées figées sur les commandes historiques ne sont jamais réécrites.
 
+**Étant donné** un adhérent, un utilisateur anonyme ou un compte désactivé
+**Quand** il tente d'accéder aux commandes ou contacts classiques
+**Alors** l'API refuse sans confirmer leur existence ni divulguer de donnée personnelle
+**Et** l'interface ne présente aucune destination correspondante.
+
+**Étant donné** les listes sur mobile
+**Quand** l'administrateur filtre ou consulte
+**Alors** les résultats utilisent des `EntityCard` et les filtres avancés un `FilterSheet`
+**Et** états, données masquées, focus et pagination respectent le contrat UX.
+
+### Story 4.6 : Corriger une commande administrativement
+
+En tant que maraîcher administrateur,
+je veux corriger une commande existante selon son état,
+afin de résoudre une erreur sans réécrire son historique ni contourner le workflow.
+
+**Exigences couvertes :** FR-034, FR-041a, FR-081; NFR-005, NFR-006, NFR-010, NFR-011; UX-DR17, UX-DR23, UX-DR64, UX-DR65, UX-DR95, UX-DR96; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18.
+
+**Critères d'acceptation :**
+
 **Étant donné** une commande `À valider` ou `À préparer`
 **Quand** l'administrateur corrige ses lignes, son occurrence, ses coordonnées ou son paiement prévu
 **Alors** la correction utilise les valeurs autorisées par le snapshot de la commande et recalcule le montant indicatif
 **Et** toute modification après la limite exige un motif et conserve les valeurs avant/après.
 
-**Étant donné** une commande déjà `Préparée`, `Livrée` ou `Annulée`
+**Étant donné** que l'instant courant atteint ou dépasse la limite de l'occurrence
+**Quand** l'administration modifie une ligne, un montant, une occurrence ou un statut, y compris `Accepter`, `Terminer la préparation`, `Livrer`, `Annuler` ou `Reporter`
+**Alors** un motif non vide est exigé avant l'écriture quelle que soit la transition métier autorisée
+**Et** l'événement d'audit conserve ce motif avec l'acteur, l'horodatage et les valeurs avant/après.
+
+**Étant donné** une commande `Préparée` non encore livrée
+**Quand** l'administrateur corrige une quantité réelle, le montant final ou la remarque avec un motif
+**Alors** une écriture corrective conserve l'ancienne et la nouvelle valeur sans changer le statut
+**Et** le suivi client présente la valeur corrigée et son historique autorisé.
+
+**Étant donné** une commande `Livrée`
+**Quand** une correction exceptionnelle de quantité réelle ou montant final est nécessaire
+**Alors** elle exige un motif et ajoute une contre-écriture liée à la valeur initiale sans rouvrir ni annuler la livraison
+**Et** une commande AMAP délègue toute correction de consommation aux règles dédiées de l'Epic 5.
+
+**Étant donné** une commande `Annulée`
 **Quand** une correction administrative est demandée
-**Alors** seules les corrections explicitement autorisées par son état sont proposées et un motif est obligatoire
-**Et** aucune transition de statut illégale ni réécriture de données commerciales figées n'est permise.
+**Alors** seules une note append-only ou une rectification de donnée personnelle autorisée sont possibles avec motif
+**Et** lignes, montant, occurrence et statut restent immuables et la commande ne peut pas être réactivée.
 
 **Étant donné** un lien client compromis ou perdu
 **Quand** l'administrateur en génère un nouveau avec confirmation
@@ -1866,9 +2063,9 @@ afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs op
 **Alors** l'API refuse toute correction sans écrasement silencieux
 **Et** l'écran affiche le conflit, recharge la commande et conserve autant que possible les choix non soumis.
 
-**Étant donné** une création, correction ou régénération de lien rejouée
+**Étant donné** une correction ou régénération de lien rejouée
 **Quand** le même identifiant d'idempotence est utilisé
-**Alors** le résultat initial est retourné sans seconde commande, seconde correction ou second jeton actif
+**Alors** le résultat initial est retourné sans seconde correction ou second jeton actif
 **Et** un contenu différent avec la même clé est refusé.
 
 **Étant donné** une action administrative significative
@@ -1876,21 +2073,18 @@ afin d'intégrer les demandes reçues hors du web et de résoudre les erreurs op
 **Alors** l'audit conserve acteur, horodatage, objet, action, avant/après et motif obligatoire
 **Et** aucun email transactionnel de commande ou de changement de statut n'est envoyé.
 
-**Étant donné** un adhérent, un utilisateur anonyme ou un compte désactivé
-**Quand** il tente d'accéder aux commandes ou contacts classiques
-**Alors** l'API refuse sans confirmer leur existence ni divulguer de donnée personnelle
-**Et** l'interface ne présente aucune destination correspondante.
-
-**Étant donné** les écrans de commandes et contacts sur mobile
-**Quand** l'administrateur filtre, consulte ou corrige
-**Alors** les listes utilisent des `EntityCard`, les filtres avancés un `FilterSheet` et les actions critiques une `StickyActionBar`
+**Étant donné** le formulaire de correction sur mobile
+**Quand** l'administrateur corrige ou régénère un lien
+**Alors** les actions critiques utilisent une `StickyActionBar`
 **Et** labels, erreurs, données masquées, focus et dialogues respectent le contrat UX.
 
-### Story 4.5 : Piloter les commandes du jour
+### Story 4.7 : Piloter les commandes du jour
 
 En tant que maraîcher administrateur,
 je veux voir immédiatement les commandes et activités prioritaires,
 afin de savoir quoi traiter aujourd'hui et demain.
+
+**Exigences couvertes :** FR-051, FR-052, FR-053; NFR-001, NFR-002, NFR-011; UX-DR19 à UX-DR21, UX-DR27, UX-DR33 à UX-DR36, UX-DR55, UX-DR56, UX-DR73; AD-9, AD-13, AD-14, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -1959,11 +2153,13 @@ afin de savoir quoi traiter aujourd'hui et demain.
 **Alors** l'API refuse l'accès sans divulguer commandes, contacts ou occurrences
 **Et** seuls les administrateurs actifs peuvent consulter ces agrégats opérationnels.
 
-### Story 4.6 : Valider les commandes séquentiellement
+### Story 4.8 : Valider les commandes séquentiellement
 
 En tant que maraîcher administrateur,
 je veux traiter les nouvelles commandes l'une après l'autre,
 afin de les accepter, les ajuster ou les annuler sans revenir constamment à la liste.
+
+**Exigences couvertes :** FR-024, FR-025, FR-054, FR-055; NFR-001, NFR-006, NFR-010, NFR-011; UX-DR17, UX-DR23, UX-DR38, UX-DR64, UX-DR65, UX-DR70, UX-DR71, UX-DR75; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -1979,7 +2175,7 @@ afin de les accepter, les ajuster ou les annuler sans revenir constamment à la 
 
 **Étant donné** une commande nécessitant une correction
 **Quand** l'administrateur choisit `Ajuster`
-**Alors** il utilise les capacités de correction de la Story 4.4 puis revient sur la même commande mise à jour
+**Alors** il utilise les capacités de correction de la Story 4.6 puis revient sur la même commande mise à jour
 **Et** aucune acceptation n'est implicite après l'ajustement.
 
 **Étant donné** une commande `À valider` valide
@@ -2027,11 +2223,13 @@ afin de les accepter, les ajuster ou les annuler sans revenir constamment à la 
 **Alors** la `StickyActionBar`, les actions précédente/suivante, la position et les annonces de statut restent accessibles
 **Et** le focus reste sur l'élément courant après erreur et se déplace de façon annoncée après succès.
 
-### Story 4.7 : Préparer une occurrence et ses commandes
+### Story 4.9 : Consulter les volumes à préparer d'une occurrence
 
 En tant que maraîcher administrateur,
-je veux connaître les volumes à préparer puis saisir les quantités réelles commande par commande,
-afin de finaliser exactement ce qui sera remis et son montant.
+je veux connaître les volumes à préparer pour une occurrence,
+afin d'organiser la récolte et sélectionner le travail à traiter.
+
+**Exigences couvertes :** FR-055, FR-056; NFR-001, NFR-011; UX-DR20, UX-DR27, UX-DR39, UX-DR73, UX-DR79; AD-9, AD-13, AD-14.
 
 **Critères d'acceptation :**
 
@@ -2044,6 +2242,21 @@ afin de finaliser exactement ce qui sera remis et son montant.
 **Quand** des commandes changent de statut ou de version
 **Alors** les volumes sont recalculés depuis l'état serveur sans modifier les commandes
 **Et** l'horodatage de fraîcheur, le nombre de commandes et la progression sont visibles.
+
+**Étant donné** la vue des volumes sur téléphone ou tablette paysage
+**Quand** l'administrateur sélectionne une occurrence
+**Alors** volumes, progression et catégories classiques ou AMAP restent lisibles sans défilement horizontal
+**Et** l'occurrence datée, jamais son modèle, ouvre la file correspondante.
+
+### Story 4.10 : Préparer les commandes séquentiellement
+
+En tant que maraîcher administrateur,
+je veux saisir les quantités réelles commande par commande,
+afin de finaliser exactement ce qui sera remis et son montant.
+
+**Exigences couvertes :** FR-026, FR-027, FR-031, FR-031a, FR-032, FR-032a, FR-041b, FR-055; NFR-001, NFR-006, NFR-010, NFR-011; UX-DR17, UX-DR24, UX-DR40, UX-DR64, UX-DR69 à UX-DR71, UX-DR74; AD-7, AD-9, AD-12, AD-13, AD-18.
+
+**Critères d'acceptation :**
 
 **Étant donné** une commande `À préparer` sans préparation commencée
 **Quand** l'administrateur ouvre sa saisie effective
@@ -2064,11 +2277,6 @@ afin de finaliser exactement ce qui sera remis et son montant.
 **Quand** l'administrateur saisit une quantité réelle inférieure ou nulle
 **Alors** la ligne demandée reste dans l'historique avec sa quantité initiale et sa quantité réelle
 **Et** aucune confirmation client supplémentaire n'est requise avant distribution.
-
-**Étant donné** une substitution
-**Quand** l'administrateur choisit un produit de remplacement
-**Alors** la ligne conserve le produit demandé et fige séparément le produit, libellé, unité, quantité et prix appliqué au remplacement
-**Et** le calcul final utilise ce prix appliqué figé, sauf écrasement manuel motivé du total.
 
 **Étant donné** une ligne avec quantité réelle et prix appliqué
 **Quand** son montant final est calculé
@@ -2093,7 +2301,7 @@ afin de finaliser exactement ce qui sera remis et son montant.
 **Étant donné** que chaque ligne possède une décision valide
 **Quand** l'administrateur active `Terminer la préparation`
 **Alors** l'API revalide la version, finalise quantités et montant dans une transaction et passe la commande à `Préparée`
-**Et** le lien client affiche dès lors les quantités réelles, substitutions et montant final en lecture seule.
+**Et** le lien client affiche dès lors les quantités réelles et le montant final en lecture seule.
 
 **Étant donné** qu'une ligne reste invalide ou indécise
 **Quand** la finalisation est demandée
@@ -2107,7 +2315,7 @@ afin de finaliser exactement ce qui sera remis et son montant.
 
 **Étant donné** une saisie ou finalisation réussie
 **Quand** la transaction est validée
-**Alors** ajustements de lignes, quantités réelles, substitutions, montant calculé, écrasement et transition sont audités
+**Alors** ajustements de lignes, quantités réelles, montant calculé, écrasement et transition sont audités
 **Et** aucune disponibilité n'est décrémentée et aucun email n'est envoyé.
 
 **Étant donné** la préparation sur téléphone ou tablette paysage
@@ -2115,11 +2323,13 @@ afin de finaliser exactement ce qui sera remis et son montant.
 **Alors** `NumericInput`, progression, unités, actions fixes, focus et annonces respectent le contrat UX
 **Et** la fin du parcours confirme le nombre préparé et propose directement la prochaine action disponible.
 
-### Story 4.8 : Livrer avec des transitions strictes
+### Story 4.11 : Livrer avec des transitions strictes
 
 En tant que maraîcher administrateur,
 je veux marquer une commande préparée comme livrée selon un workflow contrôlé,
 afin de refléter fidèlement sa remise au client sans transition incohérente.
+
+**Exigences couvertes :** FR-028, FR-029, FR-055, FR-078a; NFR-001, NFR-006, NFR-010, NFR-011; UX-DR19, UX-DR23, UX-DR64, UX-DR65, UX-DR70, UX-DR71; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -2131,7 +2341,7 @@ afin de refléter fidèlement sa remise au client sans transition incohérente.
 **Étant donné** une commande `Préparée` liée à une occurrence non annulée
 **Quand** l'administrateur confirme `Marquer comme livrée`
 **Alors** l'API revalide la version et la fait passer atomiquement à `Livrée` avec l'horodatage et l'auteur
-**Et** les quantités réelles, substitutions et montants final calculé et retenu restent inchangés.
+**Et** les quantités réelles et montants final calculé et retenu restent inchangés.
 
 **Étant donné** une commande qui n'est pas `Préparée`
 **Quand** une livraison est demandée
@@ -2145,12 +2355,12 @@ afin de refléter fidèlement sa remise au client sans transition incohérente.
 
 **Étant donné** une commande `Annulée` ou `Livrée`
 **Quand** une modification de ligne, d'occurrence ou de statut nominal est tentée
-**Alors** l'API refuse l'opération sauf correction exceptionnelle explicitement autorisée par une règle ultérieure
+**Alors** l'API refuse l'opération sauf correction append-only explicitement autorisée par la Story 4.6
 **Et** aucune action non disponible n'est rendue dans l'interface.
 
 **Étant donné** une livraison réussie
 **Quand** le client consulte son lien
-**Alors** il voit le statut `Livrée`, l'occurrence, les quantités réelles, les substitutions et le montant final en lecture seule
+**Alors** il voit le statut `Livrée`, l'occurrence, les quantités réelles et le montant final en lecture seule
 **Et** le lien expire 30 jours après l'horodatage de livraison.
 
 **Étant donné** une commande livrée
@@ -2178,11 +2388,13 @@ afin de refléter fidèlement sa remise au client sans transition incohérente.
 **Alors** l'action dominante reste accessible, se désactive au premier envoi et la progression textuelle de l'occurrence est mise à jour après succès
 **Et** statuts, confirmations, focus et annonces respectent le contrat UX.
 
-### Story 4.9 : Traiter les commandes non récupérées
+### Story 4.12 : Traiter les commandes non récupérées
 
 En tant que maraîcher administrateur,
 je veux annuler ou reporter une commande préparée non récupérée,
 afin de résoudre chaque reliquat sans perdre son historique.
+
+**Exigences couvertes :** FR-038, FR-039, FR-040; NFR-006, NFR-010, NFR-011; UX-DR18, UX-DR23, UX-DR65, UX-DR76; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -2218,7 +2430,7 @@ afin de résoudre chaque reliquat sans perdre son historique.
 
 **Étant donné** une commande reportée précédemment préparée
 **Quand** elle revient dans la file de préparation
-**Alors** ses quantités réelles, substitutions et montant précédent restent disponibles comme valeurs de référence internes
+**Alors** ses quantités réelles et montant précédent restent disponibles comme valeurs de référence internes
 **Et** ils ne redeviennent visibles au client qu'après une nouvelle finalisation au statut `Préparée`.
 
 **Étant donné** que la préparation avait déjà commencé
@@ -2246,11 +2458,13 @@ afin de résoudre chaque reliquat sans perdre son historique.
 **Alors** chaque `EntityCard` expose clairement client, ancienne récupération, montant et actions disponibles
 **Et** les confirmations, sélecteurs d'occurrence, focus et annonces respectent le contrat UX.
 
-### Story 4.10 : Clôturer une occurrence
+### Story 4.13 : Clôturer une occurrence
 
 En tant que maraîcher administrateur,
 je veux clôturer une activité avec un parcours guidé et persistant,
 afin de terminer la journée sans laisser de commande ou de changement incohérent.
+
+**Exigences couvertes :** FR-058, FR-059, FR-059a; NFR-001, NFR-006, NFR-007, NFR-010, NFR-011; UX-DR17, UX-DR31, UX-DR44, UX-DR63 à UX-DR65; AD-7, AD-9, AD-12, AD-13, AD-16, AD-17, AD-18.
 
 **Critères d'acceptation :**
 
@@ -2262,7 +2476,7 @@ afin de terminer la journée sans laisser de commande ou de changement incohére
 **Étant donné** l'étape `Commandes`
 **Quand** les commandes rattachées sont analysées
 **Alors** toute commande `À valider`, `À préparer` ou `Préparée` est bloquante tant qu'elle n'est pas livrée, annulée ou reportée vers une autre occurrence
-**Et** chaque commande `Préparée` non récupérée ouvre directement le choix `Annuler` ou `Reporter` de la Story 4.9.
+**Et** chaque commande `Préparée` non récupérée ouvre directement le choix `Annuler` ou `Reporter` de la Story 4.12.
 
 **Étant donné** qu'une commande est reportée
 **Quand** la décision est confirmée
@@ -2334,12 +2548,14 @@ En tant que maraîcher administrateur,
 je veux créer les adhérents et paramétrer leurs abonnements,
 afin de disposer d'une base fiable pour générer les prochains paniers.
 
+**Exigences couvertes :** FR-060, FR-060a, FR-061, FR-062; NFR-003, NFR-006, NFR-010, NFR-011; UX-DR18, UX-DR19, UX-DR45, UX-DR64, UX-DR65; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** un nouveau membre AMAP
 **Quand** l'administrateur renseigne son identité, son email et ses coordonnées nécessaires
 **Alors** une fiche adhérent et un compte de rôle `Adherent AMAP` sont créés sans mot de passe par défaut
-**Et** le mécanisme de réinitialisation autorisé en Story 1.3 envoie le lien permettant de définir le premier mot de passe.
+**Et** le mécanisme de réinitialisation autorisé en Story 1.5 envoie le lien permettant de définir le premier mot de passe.
 
 **Étant donné** un email déjà lié à un compte
 **Quand** l'administrateur crée l'adhérent
@@ -2348,7 +2564,7 @@ afin de disposer d'une base fiable pour générer les prochains paniers.
 
 **Étant donné** une fiche adhérent
 **Quand** l'administrateur crée un abonnement
-**Alors** il renseigne le format `Panier complet` ou `Demi-panier`, le jour et point de retrait par défaut compatibles, un solde initial strictement positif, la prochaine échéance, la date limite de modification et l'état
+**Alors** il renseigne la date d'inscription, le format `Panier complet` ou `Demi-panier`, le jour et point de retrait par défaut compatibles, un solde initial strictement positif, la prochaine échéance, la date limite de modification et l'état
 **Et** l'abonnement reçoit un identifiant opaque et une version initiale.
 
 **Étant donné** un adhérent possédant déjà un abonnement actif
@@ -2411,6 +2627,8 @@ afin de disposer d'une base fiable pour générer les prochains paniers.
 En tant que maraîcher administrateur,
 je veux définir la composition des paniers complets et demi-paniers pour une date donnée,
 afin de préparer une semaine AMAP avec des quantités explicites et ordonnées.
+
+**Exigences couvertes :** FR-063, FR-063a; NFR-006, NFR-010, NFR-011; UX-DR24, UX-DR45, UX-DR64, UX-DR69, UX-DR90 à UX-DR93; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19.
 
 **Critères d'acceptation :**
 
@@ -2485,6 +2703,8 @@ En tant que maraîcher administrateur,
 je veux définir les remplacements possibles pour une semaine et chaque format de panier,
 afin d'offrir des substitutions maîtrisées sans calcul automatique d'équivalence.
 
+**Exigences couvertes :** FR-065, FR-067a; NFR-006, NFR-010, NFR-011; UX-DR24, UX-DR45, UX-DR64; AD-7, AD-9, AD-12, AD-13, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** une composition AMAP active
@@ -2558,6 +2778,8 @@ En tant que maraîcher administrateur,
 je veux préparer chaque échéance AMAP et ses exceptions sans modifier l'abonnement permanent,
 afin que la commande générée reflète exactement la semaine concernée.
 
+**Exigences couvertes :** FR-068a, FR-068b, FR-072, FR-073, FR-074, FR-075, FR-075a; NFR-003, NFR-006, NFR-010, NFR-011; UX-DR23, UX-DR30, UX-DR45, UX-DR64, UX-DR65, UX-DR77; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** un abonnement actif avec un solde positif
@@ -2630,6 +2852,8 @@ afin que la commande générée reflète exactement la semaine concernée.
 En tant que maraîcher administrateur,
 je veux que les commandes AMAP soient générées automatiquement avant chaque retrait,
 afin qu'elles rejoignent la préparation sans validation manuelle ni doublon.
+
+**Exigences couvertes :** FR-057, FR-064, FR-068, FR-068a, FR-068b, FR-069, FR-070, FR-078a; NFR-006, NFR-010; UX-DR45, UX-DR63; AD-7, AD-9, AD-12, AD-13, AD-16, AD-17, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -2709,6 +2933,8 @@ En tant que maraîcher administrateur,
 je veux que chaque panier AMAP livré consomme exactement une échéance et puisse être corrigé de façon traçable,
 afin de maintenir un solde fiable sans double débit.
 
+**Exigences couvertes :** FR-070, FR-075, FR-076, FR-077, FR-078a, FR-078b; NFR-006, NFR-010, NFR-011; UX-DR19, UX-DR23, UX-DR65; AD-7, AD-9, AD-12, AD-13, AD-18.
+
 **Critères d'acceptation :**
 
 **Étant donné** une commande AMAP `À préparer`
@@ -2786,6 +3012,8 @@ En tant qu'adhérent AMAP,
 je veux voir mon prochain panier, mon solde et mes événements passés,
 afin de comprendre ce qui sera préparé et l'état de mon abonnement.
 
+**Exigences couvertes :** FR-071, FR-073, FR-078; NFR-003, NFR-011; UX-DR18, UX-DR19, UX-DR21, UX-DR52, UX-DR54, UX-DR55; AD-9, AD-13, AD-15, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** un adhérent authentifié avec un abonnement actif
@@ -2858,6 +3086,8 @@ afin de comprendre ce qui sera préparé et l'état de mon abonnement.
 En tant qu'adhérent AMAP,
 je veux remplacer jusqu'à deux produits de mon prochain panier par des options autorisées,
 afin d'adapter cette livraison sans modifier mon abonnement.
+
+**Exigences couvertes :** FR-066, FR-067, FR-072, FR-073; NFR-006, NFR-010, NFR-011; UX-DR23, UX-DR30, UX-DR53, UX-DR54, UX-DR64, UX-DR66; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -2932,6 +3162,8 @@ En tant qu'adhérent AMAP,
 je veux choisir une autre récupération pour mon prochain panier,
 afin d'adapter cette livraison sans modifier mon retrait habituel.
 
+**Exigences couvertes :** FR-072, FR-073; NFR-006, NFR-010, NFR-011; UX-DR27, UX-DR30, UX-DR53, UX-DR54, UX-DR64, UX-DR66; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** une échéance active strictement avant sa limite
@@ -3005,6 +3237,8 @@ En tant qu'adhérent AMAP,
 je veux suspendre mon prochain panier avant la limite,
 afin de décaler cette livraison sans consommer mon solde.
 
+**Exigences couvertes :** FR-072, FR-073, FR-074, FR-075a; NFR-006, NFR-010, NFR-011; UX-DR23, UX-DR30, UX-DR53, UX-DR54, UX-DR65, UX-DR66, UX-DR77, UX-DR88, UX-DR89; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
+
 **Critères d'acceptation :**
 
 **Étant donné** une échéance active strictement avant sa limite
@@ -3072,6 +3306,8 @@ afin de décaler cette livraison sans consommer mon solde.
 En tant qu'adhérent AMAP,
 je veux céder mon prochain panier à une autre personne,
 afin qu'elle puisse le récupérer sans transférer mon abonnement.
+
+**Exigences couvertes :** FR-072, FR-073, FR-075, FR-075a; NFR-003, NFR-006, NFR-010, NFR-011; UX-DR23, UX-DR30, UX-DR53, UX-DR54, UX-DR64 à UX-DR66, UX-DR90, UX-DR91, UX-DR95, UX-DR97; AD-7, AD-9, AD-12, AD-13, AD-15, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -3144,11 +3380,13 @@ afin qu'elle puisse le récupérer sans transférer mon abonnement.
 
 Permettre à l'exploitation de conserver les historiques nécessaires tout en appliquant information, droits, durées, suppression et anonymisation.
 
-### Story 7.1 : Publier l'information de confidentialité et le registre des traitements
+### Story 7.1 : Configurer le registre des traitements et les prestataires
 
 En tant que responsable de l'exploitation,
-je veux configurer et publier les informations relatives aux traitements de données,
-afin d'informer correctement les personnes et documenter mes obligations avant la production.
+je veux documenter les traitements, responsables et sous-traitants,
+afin de disposer des décisions vérifiées nécessaires avant toute mise en production.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-006, NFR-010; UX-DR95, UX-DR99; AD-7, AD-9, AD-12, AD-13, AD-18.
 
 **Critères d'acceptation :**
 
@@ -3171,6 +3409,16 @@ afin d'informer correctement les personnes et documenter mes obligations avant l
 **Quand** l'environnement est évalué pour une mise en production
 **Alors** le contrôle de préparation échoue en identifiant chaque décision manquante
 **Et** aucune valeur proposée dans le pack RGPD n'est considérée comme un avis juridique implicite.
+
+### Story 7.2 : Versionner et publier l'information de confidentialité
+
+En tant que responsable de l'exploitation,
+je veux publier une notice versionnée issue du registre validé,
+afin d'informer les personnes avant chaque collecte de coordonnées.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-006, NFR-011; UX-DR84, UX-DR97, UX-DR99; AD-7, AD-9, AD-12, AD-13, AD-18.
+
+**Critères d'acceptation :**
 
 **Étant donné** une notice de confidentialité prête à publier
 **Quand** une version est validée
@@ -3207,11 +3455,13 @@ afin d'informer correctement les personnes et documenter mes obligations avant l
 **Alors** sa structure de titres, ses liens, son focus et son agrandissement respectent le contrat UX
 **Et** elle reste lisible à `200 %` de texte et `400 %` de zoom sans défilement horizontal.
 
-### Story 7.2 : Traiter une demande de droits de bout en bout
+### Story 7.3 : Recevoir, vérifier et attribuer une demande
 
 En tant qu'administrateur autorisé,
-je veux enregistrer, instruire et clôturer une demande relative aux données personnelles,
-afin de répondre de manière vérifiable dans le délai applicable.
+je veux enregistrer et qualifier une demande relative aux données personnelles,
+afin de lancer son traitement avec une identité, une échéance et un responsable vérifiables.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-008, NFR-010, NFR-011; UX-DR19, UX-DR64, UX-DR90, UX-DR95; AD-7, AD-9, AD-13, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -3230,6 +3480,31 @@ afin de répondre de manière vérifiable dans le délai applicable.
 **Alors** il collecte uniquement les éléments proportionnés nécessaires à la vérification
 **Et** aucune pièce ou donnée supplémentaire n'est exigée sans justification documentée.
 
+**Étant donné** une identité suffisamment vérifiée
+**Quand** le dossier est attribué
+**Alors** il passe de `Reçue` ou `À vérifier` à `En cours` avec propriétaire et horodatage
+**Et** l'écran signale les demandes approchant ou dépassant l'échéance de 30 jours.
+
+**Étant donné** une création ou attribution rejouée
+**Quand** la même clé d'idempotence est reçue ou la version est obsolète
+**Alors** aucun dossier ni événement n'est dupliqué ou écrasé
+**Et** le résultat établi ou l'état courant est retourné.
+
+**Étant donné** l'interface sur mobile ou au clavier
+**Quand** le dossier est créé, vérifié ou attribué
+**Alors** échéance, statut, erreurs, focus et données masquées respectent le contrat UX
+**Et** seuls les administrateurs autorisés peuvent consulter ou traiter ces dossiers.
+
+### Story 7.4 : Rechercher les données et produire accès ou export
+
+En tant qu'administrateur autorisé,
+je veux localiser et rassembler les données d'une personne vérifiée,
+afin de répondre à une demande d'accès ou d'export sans divulguer les données de tiers.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-006, NFR-008; UX-DR55, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-18.
+
+**Critères d'acceptation :**
+
 **Étant donné** une demande vérifiée
 **Quand** la recherche de données est lancée
 **Alors** elle localise les informations du demandeur dans comptes, contacts, commandes, AMAP, consentements, liens, campagnes, audit et demandes antérieures
@@ -3245,15 +3520,30 @@ afin de répondre de manière vérifiable dans le délai applicable.
 **Alors** il contient un résumé lisible et des données structurées dans des formats documentés tels que JSON ou CSV
 **Et** les secrets, condensats, jetons, remarques internes non communicables et données de tiers sont exclus.
 
+**Étant donné** une génération rejouée ou des données modifiées pendant sa préparation
+**Quand** le package est finalisé
+**Alors** sa version et sa fenêtre de recherche définissent exactement son contenu sans duplication
+**Et** une mutation source pertinente impose une nouvelle revue.
+
+**Étant donné** un package prêt
+**Quand** sa preuve est créée
+**Alors** l'audit conserve périmètre, formats, volumes, exclusions, version et auteur
+**Et** il ne duplique pas le contenu personnel exporté.
+
+### Story 7.5 : Rectifier, opposer ou limiter les traitements
+
+En tant qu'administrateur autorisé,
+je veux appliquer les rectifications, oppositions et limitations approuvées,
+afin de respecter la décision prise sans altérer les preuves qui doivent rester conservées.
+
+**Exigences couvertes :** aucune FR directe; NFR-004, NFR-006, NFR-008, NFR-010; UX-DR64, UX-DR65, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-18.
+
+**Critères d'acceptation :**
+
 **Étant donné** une demande de rectification approuvée
 **Quand** elle est exécutée
 **Alors** les données courantes concernées sont corrigées avec valeurs avant/après
 **Et** les snapshots historiques soumis à conservation ne sont pas réécrits; une rectification liée est ajoutée lorsque nécessaire.
-
-**Étant donné** une demande d'effacement ou d'anonymisation approuvée
-**Quand** elle est exécutée
-**Alors** les données sans obligation de conservation sont supprimées ou anonymisées via les ports de chaque domaine
-**Et** les dates, montants et agrégats nécessaires sont préservés sans conserver une identité directement exploitable.
 
 **Étant donné** une opposition ou limitation approuvée
 **Quand** elle est appliquée
@@ -3264,6 +3554,46 @@ afin de répondre de manière vérifiable dans le délai applicable.
 **Quand** l'administrateur prend sa décision
 **Alors** la restriction, sa base, les données conservées et la durée sont documentées
 **Et** le refus total ou partiel n'efface aucune autre action approuvée.
+
+**Étant donné** une action rejouée ou concurrente
+**Quand** sa clé d'idempotence existe déjà ou sa version est obsolète
+**Alors** elle ne s'exécute pas deux fois et n'écrase aucun état courant
+**Et** le résultat établi ou la nouvelle version est présenté avant poursuite.
+
+### Story 7.6 : Effacer ou anonymiser les données éligibles
+
+En tant qu'administrateur autorisé,
+je veux exécuter un effacement ou une anonymisation approuvée,
+afin de supprimer l'identification qui n'a plus de justification tout en préservant les obligations applicables.
+
+**Exigences couvertes :** aucune FR directe; NFR-006, NFR-008, NFR-009; UX-DR23, UX-DR63, UX-DR65, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
+**Étant donné** une demande d'effacement ou d'anonymisation approuvée
+**Quand** elle est exécutée
+**Alors** les données sans obligation de conservation sont supprimées ou anonymisées via les ports de chaque domaine
+**Et** les dates, montants et agrégats nécessaires sont préservés sans conserver une identité directement exploitable.
+
+**Étant donné** un sous-traitant détenant des données éligibles
+**Quand** l'effacement est confirmé
+**Alors** une demande externe idempotente est envoyée par son port avec un périmètre minimisé
+**Et** son accusé, résultat ou échec restent suivis dans le dossier avant réponse définitive.
+
+**Étant donné** une erreur, concurrence ou reprise
+**Quand** le traitement d'un domaine ne peut pas être finalisé
+**Alors** aucun de ses enregistrements ne reste partiellement anonymisé et aucune action ne s'exécute deux fois
+**Et** les domaines indépendants réussis restent acquis et traçables.
+
+### Story 7.7 : Réviser, remettre et clôturer la réponse
+
+En tant qu'administrateur autorisé,
+je veux faire contrôler puis remettre une réponse complète au demandeur,
+afin de clôturer le dossier avec une preuve du contenu, des restrictions et du délai respecté.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-006, NFR-008, NFR-010, NFR-011; UX-DR23, UX-DR64, UX-DR65, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
+
+**Critères d'acceptation :**
 
 **Étant donné** un dossier en cours
 **Quand** il est attribué ou change d'état
@@ -3295,11 +3625,13 @@ afin de répondre de manière vérifiable dans le délai applicable.
 **Alors** étapes, échéance, erreurs, confirmations, focus et données masquées respectent le contrat UX
 **Et** les actions irréversibles utilisent un `ConfirmDialog` décrivant précisément leurs conséquences.
 
-### Story 7.3 : Appliquer conservation, anonymisation et pseudonymisation
+### Story 7.8 : Configurer les durées et exceptions légales
 
 En tant que responsable de l'exploitation,
-je veux appliquer automatiquement les durées validées et anonymiser les historiques arrivés à échéance,
-afin de ne pas conserver les personnes plus longtemps que nécessaire tout en préservant les preuves utiles.
+je veux définir et valider des politiques exécutables de conservation,
+afin que chaque catégorie de données possède une échéance et un sort final juridiquement maîtrisés.
+
+**Exigences couvertes :** aucune FR directe; NFR-008, NFR-009; UX-DR65, UX-DR95; AD-7, AD-9, AD-12, AD-13, AD-18, AD-19, AD-20.
 
 **Critères d'acceptation :**
 
@@ -3323,15 +3655,30 @@ afin de ne pas conserver les personnes plus longtemps que nécessaire tout en pr
 **Alors** son jeton ou condensat inutilisable est supprimé selon la politique validée
 **Et** l'événement non secret prouvant expiration ou révocation peut rester dans l'audit applicable.
 
+**Étant donné** une obligation légale, un litige ou une limitation active
+**Quand** une exception est ajoutée
+**Alors** elle définit périmètre, motif, base, date de début, date de réévaluation et accès autorisés
+**Et** elle ne suspend jamais les données non couvertes par ce besoin.
+
+**Étant donné** un aperçu de politique
+**Quand** le responsable le lance
+**Alors** il indique sujets et enregistrements éligibles, actions prévues, exceptions et tâches externes attendues
+**Et** aucune donnée n'est supprimée, anonymisée ou transmise.
+
+### Story 7.9 : Orchestrer l'exécution des politiques de cycle de vie
+
+En tant que responsable de l'exploitation,
+je veux exécuter les politiques actives de façon idempotente et reprenable,
+afin de traiter les données éligibles sans état partiel ni double action.
+
+**Exigences couvertes :** aucune FR directe; NFR-006, NFR-009; UX-DR55, UX-DR63, UX-DR65, UX-DR95; AD-7, AD-12, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
 **Étant donné** le job planifié de cycle de vie
 **Quand** il est réclamé par le worker PostgreSQL
 **Alors** il utilise un verrou temporaire, journalise chaque tentative et peut reprendre après interruption
 **Et** chaque personne ou lot possède une clé d'idempotence empêchant une seconde exécution des mêmes actions.
-
-**Étant donné** une exécution planifiée
-**Quand** le mode aperçu est lancé
-**Alors** il indique par traitement le nombre de sujets et enregistrements éligibles, les actions prévues et les blocages légaux
-**Et** aucune donnée n'est supprimée, anonymisée ou transmise à un sous-traitant.
 
 **Étant donné** une obligation légale, un litige ou une limitation active
 **Quand** un enregistrement arrive à sa durée normale
@@ -3343,6 +3690,21 @@ afin de ne pas conserver les personnes plus longtemps que nécessaire tout en pr
 **Alors** les données directement identifiantes sont supprimées ou anonymisées dans comptes, contacts, commandes, AMAP, consentements et campagnes selon leur politique
 **Et** aucune donnée d'un tiers ou sujet non éligible n'est modifiée.
 
+**Étant donné** une erreur pendant un lot
+**Quand** l'action d'un sujet ne peut pas être finalisée de façon cohérente
+**Alors** ses changements transactionnels sont annulés ou marqués pour reprise sans état partiellement anonymisé
+**Et** les autres sujets indépendants peuvent continuer sans masquer l'échec.
+
+### Story 7.10 : Pseudonymiser les historiques arrivés à échéance
+
+En tant que responsable de l'exploitation,
+je veux pseudonymiser les historiques dont l'identité n'est plus justifiée,
+afin de préserver les preuves et agrégats autorisés sans permettre la réidentification.
+
+**Exigences couvertes :** FR-079; NFR-006, NFR-009; UX-DR55, UX-DR63, UX-DR65, UX-DR95; AD-7, AD-12, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
 **Étant donné** un historique opérationnel à préserver
 **Quand** il est pseudonymisé
 **Alors** dates, statuts, montants, quantités et agrégats nécessaires restent exploitables sous un identifiant non directement identifiant
@@ -3353,32 +3715,506 @@ afin de ne pas conserver les personnes plus longtemps que nécessaire tout en pr
 **Alors** cette table est supprimée de façon irréversible
 **Et** l'historique conservé ne permet plus à l'application de retrouver l'identité initiale.
 
-**Étant donné** une action impliquant Resend, l'hébergeur, une sauvegarde ou un autre sous-traitant
+**Étant donné** les historiques exigés par `FR-079`
+**Quand** le cycle de vie est terminé
+**Alors** publications, statuts, reports, occurrences, suspensions, cessions et consommations restent consultables dans la mesure autorisée
+**Et** leur identité personnelle est supprimée ou pseudonymisée lorsque la conservation nominative n'est plus justifiée.
+
+### Story 7.11 : Suivre les sous-traitants et les preuves d'exécution
+
+En tant que responsable de l'exploitation,
+je veux suivre les suppressions confiées aux sous-traitants et leurs preuves,
+afin de démontrer que le cycle de vie est exécuté au-delà de la base active.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-006, NFR-009, NFR-011; UX-DR23, UX-DR55, UX-DR65, UX-DR95; AD-7, AD-12, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
+**Étant donné** une action impliquant Resend, l'hébergeur ou un autre sous-traitant actif
 **Quand** la suppression externe est requise
 **Alors** une tâche suivie conserve fournisseur, périmètre, demande, statut et preuve de réalisation
 **Et** la clôture du lot signale toute suppression externe non confirmée.
-
-**Étant donné** les sauvegardes contenant des données expirées
-**Quand** leur politique s'applique
-**Alors** leur durée, chiffrement, accès et expiration sont documentés, et une donnée restaurée repasse par les règles de suppression avant remise en service
-**Et** une restauration ne réactive pas silencieusement un consentement, compte ou jeton retiré.
-
-**Étant donné** une erreur pendant un lot
-**Quand** l'action d'un sujet ne peut pas être finalisée de façon cohérente
-**Alors** ses changements transactionnels sont annulés ou marqués pour reprise sans état partiellement anonymisé
-**Et** les autres sujets indépendants peuvent continuer sans masquer l'échec.
 
 **Étant donné** une exécution réussie
 **Quand** sa preuve est enregistrée
 **Alors** elle conserve politique et version, période, volumes, actions, exceptions, erreurs et auteur ou job
 **Et** l'audit évite de recopier les données personnelles supprimées.
 
-**Étant donné** les historiques exigés par `FR-079`
-**Quand** le cycle de vie est terminé
-**Alors** publications, statuts, reports, occurrences, suspensions, cessions et consommations restent consultables dans la mesure autorisée
-**Et** leur identité personnelle est supprimée ou pseudonymisée lorsque la conservation nominative n'est plus justifiée.
-
 **Étant donné** le tableau de suivi sur mobile ou au clavier
 **Quand** un aperçu, un lot ou une exception est consulté
 **Alors** progression, conséquences, blocages, erreurs, focus et confirmations respectent le contrat UX
 **Et** toute action irréversible reste inaccessible sans aperçu et confirmation explicite.
+
+## Epic 8 : Garantir une mise en production accessible, exploitable et vérifiée
+
+Garantir que la même version candidate peut être déployée, restaurée et utilisée sur les surfaces cibles, au clavier et avec les technologies d'assistance, avant sa mise en production.
+
+### Story 8.1 : Stabiliser les composants et règles du design system
+
+En tant qu'utilisateur de l'application,
+je veux retrouver des composants visuels cohérents et accessibles sur chaque écran,
+afin de comprendre et réaliser les actions sans comportement ou présentation imprévisible.
+
+**Exigences couvertes :** aucune FR directe; NFR-001, NFR-011; UX-DR1 à UX-DR27, UX-DR55 à UX-DR57, UX-DR72 à UX-DR74, UX-DR94; AD-4, AD-5, AD-14.
+
+**Critères d'acceptation :**
+
+**Étant donné** les thèmes de `@project/ui`
+**Quand** leurs tests de contrat sont exécutés
+**Alors** ils exposent exactement les surfaces, encres, bordures, actions et statuts de `UX-DR1` à `UX-DR5`
+**Et** `ink-disabled` reste réservé aux contrôles indisponibles, l'action primaire à l'action dominante et chaque statut associe couleur, libellé et symbole ou structure.
+
+**Étant donné** qu'un écran métier utilise déjà un composant partagé
+**Quand** cette story détecte une divergence
+**Alors** la correction est portée par le composant propriétaire et couverte par un test de non-régression
+**Et** aucun composant parallèle, redesign d'écran ou nouvelle règle métier n'est introduit dans cet epic.
+
+**Étant donné** chaque combinaison de texte, contrôle, bordure active et focus
+**Quand** son contraste est contrôlé automatiquement
+**Alors** le texte normal atteint `4,5:1`, le grand texte `3:1` et les composants graphiques, bordures actives et focus `3:1`
+**Et** le focus d'une action primaire utilise un anneau externe décalé discernable du fond.
+
+**Étant donné** l'échelle typographique
+**Quand** elle est rendue
+**Alors** `display`, `title`, `section`, `body` et `meta` respectent familles, tailles, interlignes, graisses et usages de `UX-DR7` à `UX-DR10`
+**Et** montants, quantités et heures utilisent des chiffres tabulaires lorsque la police le permet.
+
+**Étant donné** un texte agrandi à `200 %` ou un navigateur à `400 %`
+**Quand** un composant est consulté
+**Alors** aucun texte n'est transformé en image ni tronqué dans un contrôle
+**Et** contenu, unité, état et action restent disponibles.
+
+**Étant donné** les tokens de forme et d'espacement
+**Quand** les composants sont inspectés
+**Alors** seuls les rayons `8`, `12`, `16` et `9999 px` et les espacements `4`, `8`, `12`, `16`, `24`, `32`, `48 px` sont utilisés
+**Et** le rayon complet reste limité aux badges et petits contrôles segmentés, avec gouttières de `16 px` sur mobile et `24 px` sur écran large.
+
+**Étant donné** la profondeur des surfaces
+**Quand** une carte, sheet ou dialogue est affiché
+**Alors** la hiérarchie repose d'abord sur les tons fond, carte et surface temporaire
+**Et** les ombres discrètes restent réservées aux sheets, dialogues et autres surfaces temporaires au-dessus du contenu.
+
+**Étant donné** une page applicative
+**Quand** elle est créée ou contrôlée
+**Alors** sa racine utilise `Screen` avec `surface-base`, gouttières responsives, défilement, safe areas et réserve pour l'action fixe
+**Et** son `ScreenHeader` porte l'unique titre `display`, un contexte bref et des actions secondaires visuellement subordonnées.
+
+**Étant donné** une action dominante en fin de parcours
+**Quand** `StickyActionBar` est rendu
+**Alors** il reste accessible après lecture, utilise `surface-raised` et `border-subtle`, et ne masque ni contenu ni focus
+**Et** son unique action dominante est pleine largeur sur mobile et contextuelle sur desktop.
+
+**Étant donné** une `EntityCard`, un `StatusBadge`, une `ProgressCard` ou un `EmptyState`
+**Quand** le composant est utilisé
+**Alors** leurs contrats imposent respectivement une cible native sans interaction imbriquée, un statut libellé et annoncé, une progression textuelle, et un état vide concret avec prochaine étape
+**Et** l'ordre des informations de la carte et le padding `24 px` de l'état vide sont vérifiés.
+
+**Étant donné** un `FilterSheet` ouvert sur mobile
+**Quand** l'utilisateur modifie puis applique ses filtres
+**Alors** `Appliquer` conserve les choix et ferme la feuille avec les résultats filtrés
+**Et** `Réinitialiser`, visuellement secondaire, efface explicitement les choix et rétablit l'état initial documenté.
+
+**Étant donné** une action irréversible
+**Quand** `ConfirmDialog` est ouvert
+**Alors** son titre exprime la conséquence, son détail reste concis, l'action destructive est distincte et le retour non destructif
+**Et** le focus initial n'est jamais placé automatiquement sur l'action destructive.
+
+**Étant donné** un `NumericInput`
+**Quand** une quantité est saisie
+**Alors** sa hauteur atteint au moins `48 px`, son unité reste visible, le clavier numérique est demandé et le calcul est immédiat
+**Et** une erreur précise est reliée au champ et les boutons `+`/`-` sont présents lorsque la granularité est connue.
+
+**Étant donné** un `SegmentedControl`
+**Quand** il est parcouru au clavier ou avec un lecteur d'écran
+**Alors** ses options à libellés complets sont mutuellement exclusives et suivent le comportement clavier documenté du motif retenu
+**Et** nom, rôle, état sélectionné et changement de sélection sont exposés.
+
+**Étant donné** un `ResponsivePane` ou une `OccurrenceCard`
+**Quand** leurs contrats sont testés
+**Alors** le master/detail ne s'active sur tablette ou desktop que s'il évite un aller-retour opérationnel
+**Et** l'occurrence affiche type, horaire, progression et statut, puis ouvre toujours l'occurrence datée et jamais son modèle récurrent.
+
+**Étant donné** une sauvegarde de brouillon
+**Quand** elle réussit
+**Alors** la région `status` annonce immédiatement `Modifications enregistrées` et le nombre exact de changements non publiés
+**Et** aucune apparence ou microcopie ne laisse croire que ces changements sont déjà publics.
+
+**Étant donné** un contrôle interactif
+**Quand** sa cible réelle et ses espacements sont mesurés
+**Alors** elle atteint au moins `24 × 24 px` sans chevauchement
+**Et** navigation, icônes, fermeture, filtres, incréments et réorganisation visent `44 à 48 px`.
+
+**Étant donné** les libellés, aides, confirmations et erreurs des composants
+**Quand** leur microcopie est revue
+**Alors** elle nomme directement nombre, statut, instant et conséquence utiles
+**Et** elle évite les formulations abstraites qui n'indiquent pas la prochaine action.
+
+**Étant donné** que `prefers-reduced-motion: reduce` est actif
+**Quand** skeletons, sheets, dialogues, changements de statut ou navigation sont rendus
+**Alors** les animations deviennent instantanées ou brèves et aucun skeleton n'utilise de balayage
+**Et** aucun changement de contexte automatique non annoncé n'est déclenché.
+
+### Story 8.2 : Intégrer la navigation adaptative des espaces
+
+En tant qu'utilisateur sur mobile, tablette ou desktop,
+je veux une navigation adaptée à mon espace et à mon écran,
+afin d'accéder directement aux opérations fréquentes sans détour.
+
+**Exigences couvertes :** aucune FR directe; NFR-001, NFR-011; UX-DR15 à UX-DR17, UX-DR22, UX-DR26, UX-DR27, UX-DR33 à UX-DR35, UX-DR37, UX-DR39, UX-DR85; AD-4, AD-5, AD-14.
+
+**Critères d'acceptation :**
+
+**Étant donné** la matrice des routes publiques, administratives et adhérent
+**Quand** la recette d'intégration des écrans est exécutée
+**Alors** elle couvre au minimum accueil public, catalogue, checkout, suivi, connexion, `Aujourd'hui`, commandes, préparation, disponibilités, publication, distribution, AMAP, espace adhérent et confidentialité
+**Et** chaque écran utilise les composants et contrats validés en Story 8.1 sans dupliquer leur implémentation.
+
+**Étant donné** la navigation admin sur une largeur de `320` à `430 px`
+**Quand** une destination est ouverte
+**Alors** la barre basse expose `Aujourd'hui`, `Commandes`, `Préparer`, `Dispos` et `Plus`, avec cible tactile conforme et destination active explicite
+**Et** `aria-current="page"` identifie l'entrée active sans dépendre de la couleur seule.
+
+**Étant donné** la même navigation entre `768` et `1440 px`
+**Quand** l'espace disponible permet une sidebar
+**Alors** elle devient permanente avec les libellés complets `Préparation` et `Disponibilités`
+**Et** distribution, AMAP, produits, clients, publications et paramètres restent accessibles dans `Plus` ou la sidebar.
+
+**Étant donné** une surface administrative secondaire
+**Quand** l'administrateur doit revenir à une opération fréquente
+**Alors** `Aujourd'hui`, `Commandes`, `Préparer` et `Disponibilités` restent accessibles directement sans repasser par l'accueil
+**Et** l'accès ne demande jamais plus d'une activation depuis la navigation persistante.
+
+**Étant donné** les parcours de traitement principaux
+**Quand** le nombre d'actions depuis leur point d'entrée est mesuré
+**Alors** modifier une disponibilité, valider, préparer, livrer ou clôturer demande au plus trois actions significatives
+**Et** l'affichage de détail simultané, quand il réduit ces actions, n'est activé qu'aux largeurs réellement utiles.
+
+**Étant donné** les écrans `Commandes` et `Préparer`
+**Quand** ils sont utilisés sur mobile
+**Alors** les filtres avancés utilisent `FilterSheet` et la préparation commence par une `OccurrenceCard` représentant l'occurrence datée
+**Et** tablette ou desktop peut utiliser `ResponsivePane` sans modifier l'ordre logique ni ouvrir un modèle récurrent.
+
+### Story 8.3 : Garantir le reflow des écrans réels
+
+En tant qu'utilisateur sur mobile, tablette ou desktop,
+je veux conserver contenu et actions lorsque la largeur ou le zoom change,
+afin d'accomplir le même parcours sans troncature ni défilement parasite.
+
+**Exigences couvertes :** aucune FR directe; NFR-001, NFR-011; UX-DR78 à UX-DR83; AD-4, AD-5, AD-14.
+
+**Critères d'acceptation :**
+
+**Étant donné** une largeur de `320` à `430 px`
+**Quand** chaque écran de la matrice est rendu
+**Alors** il utilise une colonne, des formulaires verticaux, des filtres en sheet et l'action dominante fixe lorsque nécessaire
+**Et** les contrôles de disponibilité reviennent à la ligne sans tronquer champ, unité ou statut.
+
+**Étant donné** une tablette de `768` à `1024 px` en portrait ou paysage
+**Quand** validation, préparation et autres écrans de la matrice sont rendus
+**Alors** ils utilisent une ou deux colonnes avec de grandes cibles tactiles, et le paysage optimise validation et préparation
+**Et** aucune fonction ne devient inaccessible en portrait.
+
+**Étant donné** un écran desktop jusqu'à `1440 px`
+**Quand** historique ou détail simultané améliore la tâche
+**Alors** il peut accompagner la liste avec une sidebar permanente
+**Et** un tableau n'est utilisé que s'il améliore la lecture et conserve une alternative adaptée au reflow.
+
+**Étant donné** chaque écran entre `320` et `1440 px`, à `200 %` de texte et `400 %` de zoom
+**Quand** la recette visuelle et fonctionnelle est exécutée
+**Alors** aucun défilement horizontal n'apparaît hors contenu réellement bidimensionnel
+**Et** aucun contenu, contrôle, état ou parcours n'est perdu.
+
+**Étant donné** une action fixe, un résumé d'erreurs ou une cible de navigation interne
+**Quand** le focus s'y déplace
+**Alors** l'ordre DOM et de focus reste conforme à l'ordre visuel
+**Et** `scroll-margin` et les réserves du `Screen` empêchent toute barre fixe de masquer le focus ou l'erreur.
+
+### Story 8.4 : Vérifier structures, dialogues et formulaires accessibles
+
+En tant qu'utilisateur au clavier ou avec une technologie d'assistance,
+je veux que les structures, dialogues et formulaires soient correctement exposés,
+afin de saisir et confirmer chaque opération au clavier ou avec une technologie d'assistance.
+
+**Exigences couvertes :** aucune FR directe; NFR-011; UX-DR23, UX-DR72, UX-DR84, UX-DR86 à UX-DR91; AD-4, AD-5, AD-14.
+
+**Critères d'acceptation :**
+
+**Étant donné** un écran de la matrice
+**Quand** sa structure accessible est inspectée
+**Alors** il contient un unique `main`, des `nav` nommées, une hiérarchie de titres valide et un lien `Aller au contenu` visible au focus
+**Et** chaque contrôle expose nom, rôle, état et focus visible conformément aux tokens.
+
+**Étant donné** une sheet ou un dialogue
+**Quand** il est ouvert puis fermé au clavier
+**Alors** il est nommé, modal avec `aria-modal`, rend l'arrière-plan inerte et se ferme avec `Escape` sauf justification testée
+**Et** le focus initial vise le titre ou une action non destructive, puis revient au déclencheur à la fermeture.
+
+**Étant donné** un formulaire public, administratif ou adhérent
+**Quand** il est affiché puis soumis avec des erreurs
+**Alors** chaque champ possède label visible, état obligatoire ou facultatif, aide, `aria-invalid` et message précis relié
+**Et** un résumé focusable pointe vers les champs erronés tandis que les saisies valides sont conservées.
+
+### Story 8.5 : Annoncer les états et protéger les données exposées
+
+En tant qu'utilisateur avec une technologie d'assistance,
+je veux recevoir des retours d'état utiles sans exposition de données sensibles,
+afin de comprendre le résultat de mes actions en toute confidentialité.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-005, NFR-011; UX-DR55, UX-DR67, UX-DR92 à UX-DR95, UX-DR97, UX-DR99; AD-4, AD-5, AD-14, AD-15.
+
+**Critères d'acceptation :**
+
+**Étant donné** une réorganisation de tournée avec `Monter`, `Descendre` ou glisser-déposer
+**Quand** un arrêt change de position
+**Alors** la position initiale et le résultat sont annoncés aux technologies d'assistance
+**Et** les boutons offrent l'intégralité du comportement sans glisser-déposer.
+
+**Étant donné** une sauvegarde, progression, réussite, nouvel élément ou erreur bloquante
+**Quand** le retour est produit
+**Alors** les informations non bloquantes utilisent une région `status` polie
+**Et** seules les erreurs exigeant une intervention immédiate utilisent `alert`, sans annonce dupliquée.
+
+**Étant donné** un skeleton pendant un chargement
+**Quand** la zone attend un état fiable
+**Alors** sa structure inerte préserve la mise en page, porte `aria-busy` et bloque les actions critiques
+**Et** la préférence de mouvements réduits supprime son balayage éventuel.
+
+**Étant donné** une surface contenant des données personnelles ou un lien sécurisé
+**Quand** elle est consultée hors de son besoin strict
+**Alors** les coordonnées sont masquées et aucun jeton n'apparaît dans l'historique, l'administration, les logs ou les annonces
+**Et** un lien invalide, expiré ou révoqué ne révèle aucune donnée et oriente seulement vers le contact autorisé.
+
+**Étant donné** un formulaire qui collecte des coordonnées
+**Quand** il est ouvert avant soumission
+**Alors** la notice active, l'identité et le contact du responsable sont accessibles, et les champs facultatifs sont marqués
+**Et** les mentions légales, prestataires, transferts, bases, durées et droits non validés bloquent la préparation à la production.
+
+### Story 8.6 : Choisir et provisionner les environnements VPS en France
+
+En tant que responsable de l'exploitation,
+je veux provisionner des environnements isolés sur un hébergement français vérifié,
+afin de préparer une candidate sans exposer la production au staging.
+
+**Exigences couvertes :** aucune FR directe; NFR-007; AD-8, AD-10, AD-11, AD-16, AD-17.
+
+**Critères d'acceptation :**
+
+**Étant donné** le premier provisionnement
+**Quand** le fournisseur VPS est choisi
+**Alors** une ADR retient OVHcloud ou un équivalent hébergeant physiquement en France après vérification de localisation, DPA, accès, SLA, snapshots, stockage de sauvegarde et sortie
+**Et** aucun environnement n'est créé tant qu'un critère bloquant reste sans preuve.
+
+**Étant donné** le VPS retenu
+**Quand** les cibles `staging` et `production` sont provisionnées
+**Alors** deux stacks Docker Compose préparent réseaux, volumes, secrets, limites de ressources, un worker unique par stack et PostgreSQL `18.6` non exposé publiquement, sans déployer encore de candidate applicative
+**Et** le reverse proxy et les règles d'isolation sont prêts, tandis que staging ne peut ni lire ni muter les données de production.
+
+**Étant donné** les secrets et accès d'administration
+**Quand** ils sont configurés
+**Alors** ils sont distincts par stack, fournis au runtime et protégés par le moindre privilège
+**Et** aucune valeur sensible n'est intégrée aux images, manifests versionnés ou logs.
+
+### Story 8.7 : Promouvoir et retirer une version sans reconstruction
+
+En tant que responsable de l'exploitation,
+je veux promouvoir ou retirer une candidate immuable avec ses migrations maîtrisées,
+afin de déployer la même version en staging et production de façon traçable.
+
+**Exigences couvertes :** aucune FR directe; NFR-006, NFR-007, NFR-010; AD-8, AD-10, AD-11, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
+**Étant donné** les environnements et migrations
+**Quand** une promotion est préparée
+**Alors** `infra` possède manifests, migrations, contrôles de compatibilité, procédures de promotion et retour arrière
+**Et** le même artefact SHA produit en Story 1.3 est promu entre environnements sans reconstruction.
+
+**Étant donné** une migration de schéma
+**Quand** sa compatibilité est vérifiée
+**Alors** elle respecte une séquence déployable avec les versions applicatives concernées
+**Et** le rollback documente les limites des changements de données irréversibles au lieu de promettre une restauration impossible.
+
+**Étant donné** une commande métier impliquant un fournisseur externe actuel ou futur
+**Quand** la candidate est contrôlée
+**Alors** son état autoritaire est persisté dans PostgreSQL sans attente d'une synchronisation distante
+**Et** Resend, une future outbox Odoo ou tout fournisseur similaire reste derrière un port et un traitement asynchrone reprenable.
+
+**Étant donné** un déploiement ou rollback
+**Quand** sa procédure s'exécute
+**Alors** version, environnement, artefact, migrations, probes et résultat sont tracés
+**Et** aucun secret n'est écrit dans les logs ou artefacts de diagnostic.
+
+### Story 8.8 : Externaliser et restaurer les sauvegardes
+
+En tant que responsable de l'exploitation,
+je veux sauvegarder les données hors du VPS et prouver leur restauration,
+afin de reprendre l'activité dans les objectifs convenus après un incident.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-009; UX-DR95; AD-10, AD-11, AD-16, AD-17.
+
+**Critères d'acceptation :**
+
+**Étant donné** les données persistantes
+**Quand** la politique de sauvegarde est activée
+**Alors** les sauvegardes chiffrées sont externalisées dans un stockage physiquement situé en France avec une cible `RPO <= 24 h` et `RTO <= 4 h`
+**Et** accès, rotation, rétention, alertes et responsabilité sont documentés.
+
+**Étant donné** une sauvegarde sélectionnée après le déploiement de la Story 8.7
+**Quand** une restauration est testée sur staging
+**Alors** intégrité, migrations, secrets remplacés et règles de cycle de vie sont vérifiés avant ouverture
+**Et** date, durée, résultat, écarts et procédure d'incident sont conservés comme preuve.
+
+**Étant donné** un consentement retiré, un compte désactivé, un jeton révoqué ou une donnée effacée après la sauvegarde
+**Quand** la restauration est préparée
+**Alors** les événements et politiques postérieurs sont réappliqués avant remise en service
+**Et** aucun état retiré ou supprimé n'est réactivé silencieusement.
+
+**Étant donné** un échec ou dépassement de l'objectif
+**Quand** la supervision le détecte
+**Alors** une alerte actionnable identifie sauvegarde, environnement et prochaine action
+**Et** la restauration n'est jamais déclarée réussie sans contrôle applicatif.
+
+### Story 8.9 : Initialiser un harnais E2E déterministe
+
+En tant que responsable de l'exploitation,
+je veux un environnement de recette reproductible et isolé,
+afin que les parcours critiques puissent être automatisés sans données partagées ni résultat aléatoire.
+
+**Exigences couvertes :** aucune FR directe; NFR-006, NFR-007, NFR-010; UX-DR100; AD-8, AD-10, AD-16, AD-17, AD-18.
+
+**Critères d'acceptation :**
+
+**Étant donné** l'environnement de recette E2E
+**Quand** la suite est initialisée
+**Alors** elle démarre web, API, worker et PostgreSQL sur des versions verrouillées avec des données déterministes dédiées
+**Et** chaque scénario isole ses données, son horloge et ses identifiants sans utiliser ni révéler de données de production.
+
+**Étant donné** les sept parcours exigés
+**Quand** leurs helpers sont utilisés
+**Alors** ils permettent de vérifier état visible, réponse API, persistance, file et événement d'audit pertinents
+**Et** ils n'imposent aucun détail d'implémentation sans valeur contractuelle.
+
+**Étant donné** les rôles V1
+**Quand** les fixtures créent administrateur, adhérent ou client sans compte
+**Alors** elles respectent les invariants métier et isolent comptes, identifiants et clés d'idempotence
+**Et** aucun mot de passe, secret ou jeton brut n'est journalisé.
+
+**Étant donné** Resend ou un futur adaptateur externe
+**Quand** un succès, délai, échec temporaire ou refus définitif est simulé
+**Alors** un faux adaptateur contrôlable expose les appels sans accès réseau réel
+**Et** les scénarios peuvent prouver reprise et absence de double envoi.
+
+**Étant donné** une attente asynchrone
+**Quand** le test attend un résultat
+**Alors** il observe une condition explicite avec délai borné
+**Et** aucun délai arbitraire ne masque une course.
+
+### Story 8.10 : Automatiser les parcours administratifs critiques
+
+En tant que responsable de l'exploitation,
+je veux une recette automatique du cycle quotidien, de la publication et de la clôture,
+afin de vérifier les opérations administratives les plus risquées avant livraison.
+
+**Exigences couvertes :** aucune FR directe; NFR-002, NFR-004, NFR-006, NFR-007, NFR-010, NFR-011; UX-DR28, UX-DR29, UX-DR31, UX-DR36, UX-DR38 à UX-DR44, UX-DR57 à UX-DR65, UX-DR69 à UX-DR71, UX-DR75, UX-DR76, UX-DR100; AD-16, AD-17, AD-18, AD-19, AD-20.
+
+**Critères d'acceptation :**
+
+**Étant donné** le parcours du cycle admin
+**Quand** un administrateur se connecte puis traite une activité
+**Alors** il accède selon son rôle, modifie une disponibilité, valide, prépare et livre une commande avec les transitions autorisées
+**Et** compte désactivé, session expirée, transition interdite et conflit de version sont vérifiés sans écriture silencieuse.
+
+**Étant donné** le parcours de publication
+**Quand** l'administrateur enregistre, revoit puis publie des disponibilités avec ou sans email
+**Alors** seul le snapshot revu devient public et seuls les consentements encore actifs sont éligibles à la campagne
+**Et** brouillon concurrent, zéro destinataire, retrait avant envoi, échec temporaire ou permanent et reprise n'entraînent ni blocage de publication ni double envoi.
+
+**Étant donné** le parcours de clôture
+**Quand** l'administrateur traite non-retraits, disponibilités, publication facultative et confirmation finale
+**Alors** les quatre étapes persistent, la revalidation serveur est effectuée et l'occurrence se clôture avec son résumé
+**Et** commandes bloquantes, reprise après interruption, double confirmation et occurrence annulée conservent leurs états métier attendus.
+
+**Étant donné** une dépendance externe indisponible
+**Quand** Resend ou un futur adaptateur échoue pendant un scénario concerné
+**Alors** prise, préparation, livraison et clôture continuent sur l'état local
+**Et** le travail asynchrone reste visible, reprenable et idempotent.
+
+### Story 8.11 : Automatiser les parcours publics et AMAP
+
+En tant que responsable de l'exploitation,
+je veux une recette automatique de la commande, du suivi et des usages AMAP,
+afin de vérifier les parcours autonomes des clients et adhérents ainsi que leur isolation.
+
+**Exigences couvertes :** aucune FR directe; NFR-003, NFR-005, NFR-006, NFR-010, NFR-011; UX-DR30, UX-DR45, UX-DR47 à UX-DR54, UX-DR63 à UX-DR71, UX-DR74, UX-DR75, UX-DR77, UX-DR100; AD-12, AD-15, AD-18, AD-19, AD-20.
+
+**Critères d'acceptation :**
+
+**Étant donné** le parcours de commande sans compte
+**Quand** un client consulte l'offre, sélectionne produits et occurrence puis confirme ses coordonnées et paiement prévu
+**Alors** la commande fige les données commerciales, affiche immédiatement son lien de suivi et reste indépendante de tout opt-in
+**Et** limite dépassée, produit indisponible, formulaire invalide, double soumission et échec réseau conservent un résultat cohérent et explicite.
+
+**Étant donné** le parcours du prochain panier AMAP
+**Quand** un adhérent consulte son échéance puis réalise une substitution, un changement de retrait, une suspension ou une cession autorisée
+**Alors** le prochain panier, le solde et l'historique reflètent immédiatement l'action versionnée
+**Et** échéance dépassée, données d'un autre adhérent, suspension incompatible avec cession et conflit concurrent sont refusés sans fuite.
+
+**Étant donné** le parcours de suivi sécurisé
+**Quand** un client utilise le lien remis à la confirmation
+**Alors** il ne voit que sa commande, peut la modifier avant préparation et distingue montant indicatif et montant final
+**Et** jeton altéré, révoqué, remplacé ou expiré ne révèle aucune donnée, tandis qu'une modification après acceptation retourne la commande à `À valider`.
+
+**Étant donné** le parcours de composition hebdomadaire AMAP
+**Quand** l'administrateur définit la composition, les deux substitutions fixes puis génère les commandes d'une occurrence
+**Alors** formats, exceptions, suspensions, cessions, volumes et commandes sont cohérents et la génération est idempotente
+**Et** génération rejouée, solde insuffisant, occurrence incompatible, substitution impossible et concurrence ne produisent aucun doublon ni consommation anticipée.
+
+### Story 8.12 : Exécuter la matrice appareils, clavier et assistance
+
+En tant que responsable de l'exploitation,
+je veux exécuter les sept parcours sur les surfaces et modes d'interaction cibles,
+afin de disposer d'une preuve finale responsive et accessible avant production.
+
+**Exigences couvertes :** aucune FR directe; NFR-001, NFR-002, NFR-003, NFR-010, NFR-011; UX-DR6, UX-DR11, UX-DR55, UX-DR72, UX-DR78 à UX-DR95, UX-DR100; AD-8, AD-10, AD-14, AD-19, AD-20.
+
+**Critères d'acceptation :**
+
+**Étant donné** les profils d'affichage de la recette
+**Quand** chacun des sept parcours est exécuté
+**Alors** il passe sur mobile `320–430 px`, tablette `768–1024 px` et desktop jusqu'à `1440 px`
+**Et** les assertions couvrent navigation adaptée, absence de défilement horizontal, action dominante, reflow, `200 %` de texte et `400 %` de zoom sur les étapes représentatives.
+
+**Étant donné** l'exécution au clavier
+**Quand** chacun des sept parcours est parcouru sans pointeur
+**Alors** toutes les opérations restent réalisables dans un ordre de focus logique et visible
+**Et** sheets, dialogues, erreurs, résumés, actions fixes et retours de focus respectent leurs contrats.
+
+**Étant donné** chaque écran stable rencontré par la suite
+**Quand** l'analyse d'accessibilité automatisée est exécutée
+**Alors** aucune violation bloquante de nom, rôle, état, contraste, structure, formulaire ou modalité n'est acceptée
+**Et** les régions `status`, `alert`, `aria-busy` et changements de statut possèdent des assertions explicites plutôt qu'une simple capture visuelle.
+
+**Étant donné** les limites de l'automatisation navigateur
+**Quand** la recette d'assistance est constituée
+**Alors** un protocole reproductible complète la suite avec VoiceOver/Safari et NVDA/Firefox ou NVDA/Chrome sur les sept parcours
+**Et** version, plateforme, étapes, résultat, anomalies et preuve de correction sont consignés avant la décision de production.
+
+**Étant donné** une date proche de minuit ou d'un changement d'heure
+**Quand** un scénario utilise `aujourd'hui`, `demain`, une limite à `20:00` la veille ou une occurrence imminente
+**Alors** les résultats sont vérifiés dans `Europe/Paris` avec stockage UTC et sérialisation ISO 8601 avec offset
+**Et** heure inexistante, heure ambiguë et instant exact de limite produisent le résultat documenté.
+
+**Étant donné** une exécution CI en échec
+**Quand** les artefacts de diagnostic sont conservés
+**Alors** trace, logs filtrés, capture et vidéo éventuelle permettent d'identifier le scénario, l'étape et la version
+**Et** aucun secret, jeton brut ou donnée personnelle n'y apparaît.
+
+**Étant donné** une suite instable ou rejouée
+**Quand** un test dépend d'un délai arbitraire, d'un ordre antérieur ou d'une ressource partagée
+**Alors** la vérification échoue jusqu'à suppression de cette dépendance
+**Et** les attentes reposent sur des états observables, les scénarios restent indépendants et une relance ne masque pas un premier échec.
+
+**Étant donné** une version candidate
+**Quand** la gate de mise en production est évaluée
+**Alors** l'ADR VPS, l'isolation des deux stacks, le déploiement du même SHA, les probes, la restauration prouvée dans `RPO <= 24 h` et `RTO <= 4 h`, les contrats de composants, la recette des écrans et les sept parcours E2E doivent tous être validés
+**Et** les preuves manuelles d'assistance sont à jour, tandis que toute exception possède propriétaire, impact, échéance et décision explicite plutôt qu'une désactivation silencieuse.
