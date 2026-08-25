@@ -156,6 +156,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Securite et configuration (AD-11, AD-15)** : garder les secrets dans l'environnement du runtime, declarer la securite dans OpenAPI, rendre les jetons opaques, expirables et revocables, et attribuer explicitement les builds, migrations, jobs, promotions et retours arriere.
 - **Concurrence, transactions et idempotence (AD-18)** : faire de chaque cas d'usage l'unique mutation d'un aggregate, valider les transitions et versions attendues sur l'etat courant, persister atomiquement toutes les ecritures liees et memoriser le resultat initial de toute commande HTTP rejouable avec une cle scopee par operation et principal ou jeton.
 - **Jobs et traitements asynchrones (AD-16, AD-17)** : stocker les jobs, les reclamer atomiquement avec verrou temporaire, executer un worker unique par environnement, journaliser chaque tentative et rendre les traitements idempotents et relancables; une transaction destinee a Odoo doit aussi ecrire une outbox et l'adaptateur futur doit rester hors chemin critique.
+- **Decision technique - email et jobs V1** : utiliser Resend derriere un port de fournisseur pour l'envoi d'emails et une file persistante PostgreSQL, reclamee atomiquement par un worker unique par environnement, pour les campagnes et futurs traitements planifies.
 - **Temps et recurrence (AD-19, AD-20)** : calculer dates locales, occurrences, recurrents et limites dans `Europe/Paris`, autoriser une modification strictement avant la limite, puis stocker et echanger les instants en UTC avec offset ISO 8601.
 - **Deploiement et CI (AD-8, AD-10, AD-11)** : produire un artefact et une configuration runtime par app V1; faire posseder par `infra` environnements, deploiement, references de secrets, promotion et rollback; executer en CI compatibilite de stack, tests, conformite OpenAPI, frontieres, imports publics et absence de cycles.
 - **Decisions differees** : trancher avant le premier endpoint l'outillage OpenAPI et les conventions d'erreur/pagination; avant deploiement le cloud, la topologie, les environnements, la residence des donnees, l'observabilite, les sauvegardes, alertes et incidents; avant le premier job le runner; avant Odoo son audit et son scope; avant traitement de donnees la classification/conservation/suppression; a l'initialisation du workspace le gestionnaire de paquets, le fournisseur CI, la matrice de tests et le versionnement des releases.
@@ -169,6 +170,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Incoherence a trancher - FR-035a / regle transverse** : FR-035a autorise au client la modification d'une commande `A preparer` avant la limite en la ramenant a `A valider`, tandis que la regle transverse interdit toute modification ou annulation une fois la preparation commencee; definir un critere unique et testable distinguant, si necessaire, commande acceptee et preparation effectivement commencee.
 - **Incoherence a trancher - FR-044 / FR-044a** : FR-044 qualifie de selectable une occurrence `Prevue`, `Terminee` ou `Annulee`, tandis que FR-044a limite la selection a une occurrence `Prevue` avant sa date limite; confirmer FR-044a comme filtre operationnel ou reformuler FR-044.
 - **Decision produit - exception a FR-019** : l'email contenant un lien de reinitialisation de mot de passe est autorise en V1 comme unique email transactionnel; les autres emails transactionnels, rappels et notifications de statut restent interdits.
+- **Decision produit - gestion du consentement sans compte** : chaque email de publication contient un lien individuel permettant de consulter l'etat du consentement et de se desinscrire; apres retrait, une nouvelle inscription passe par le formulaire public et cree un nouvel evenement de consentement.
 - **Question ouverte PRD 1** : avant mise en production, le responsable de traitement doit confirmer que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
 - **Question ouverte PRD 2** : definir la propagation V1 des modifications d'un marche ou d'une tournee vers les occurrences futures existantes, soit toujours independantes, soit mises a jour seulement si non personnalisees et apres confirmation explicite.
 - **Question ouverte PRD 3** : confirmer si la limite de deux substitutions et la date limite portee par l'abonnement admettent des exceptions par semaine.
@@ -300,7 +302,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **FR-006** : Epic 2 - mise à jour des disponibilités sans réservation de stock.
 - **FR-007** : Epic 2 - indépendance entre opérations et disponibilités estimées.
 - **FR-008** : Epic 2 - accès public limité à la dernière offre active.
-- **FR-009** : Epic 2 - rattachement des commandes au snapshot publié consulté.
+- **FR-009** : Epic 4 - rattachement des commandes au snapshot publié consulté.
 - **FR-009a** : Epic 2 - information sur le caractère estimatif et non réservé des quantités.
 - **FR-010** : Epic 2 - publication explicite de l'état courant des disponibilités.
 - **FR-011** : Epic 2 - création d'un snapshot immuable à chaque publication.
@@ -413,7 +415,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre à l'administrateur de maintenir produits et disponibilités estimées, puis de publier une offre publique fiable et, facultativement, d'en informer les personnes consentantes.
 
-**FR couvertes :** FR-001, FR-002, FR-002a, FR-002b, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-009a, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017, FR-018, FR-019, FR-019a, FR-019b, FR-019c, FR-019d.
+**FR couvertes :** FR-001, FR-002, FR-002a, FR-002b, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009a, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017, FR-018, FR-019, FR-019a, FR-019b, FR-019c, FR-019d.
 
 **Notes d'implémentation/UX :** séparer brouillon, snapshot publié et campagne email; afficher clairement que les quantités ne sont ni garanties ni réservées. Verrouiller la publication sur la version revue, préserver les snapshots et rendre visibles les exclusions et échecs d'envoi sans bloquer l'offre active.
 
@@ -429,7 +431,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre au client de commander et suivre sans compte, et à l'administrateur de valider, préparer, ajuster, livrer, reporter ou annuler chaque commande jusqu'à la clôture de l'occurrence.
 
-**FR couvertes :** FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-036, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-057, FR-058, FR-059, FR-059a, FR-081.
+**FR couvertes :** FR-009, FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-036, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-057, FR-058, FR-059, FR-059a, FR-081.
 
 **Notes d'implémentation/UX :** figer les données commerciales à la création, séparer montant indicatif et montant final et sécuriser le suivi par un jeton limité à une commande. Optimiser les vues `Aujourd'hui`, validation et préparation pour le traitement séquentiel; rendre la clôture persistante, guidée et revalidée côté serveur.
 
@@ -827,3 +829,445 @@ afin de comprendre qui a modifié l'accès à l'exploitation et quand.
 **Quand** leur suite d'acceptation est exécutée
 **Alors** authentification, réinitialisation, comptes, sessions, autorisation et audit fonctionnent sans dépendre d'un epic futur
 **Et** les cinq FR de l'Epic 1 sont couvertes, les futurs epics n'ayant plus qu'à brancher leurs propres actions métier sur les contrats d'autorisation et d'audit.
+
+## Epic 2 : Maintenir et publier une offre fiable
+
+Permettre au maraîcher de maintenir produits et disponibilités estimées, publier une offre publique immuable et informer facultativement les personnes consentantes.
+
+### Story 2.1 : Gérer le catalogue de produits
+
+En tant que maraîcher administrateur,
+je veux créer, modifier, activer et désactiver mes produits,
+afin de maintenir un catalogue fiable sans altérer les usages historiques.
+
+**Critères d'acceptation :**
+
+**Étant donné** qu'aucune donnée produit n'existe encore
+**Quand** cette story est appliquée
+**Alors** elle crée uniquement l'agrégat, la persistance, les contrats API et les écrans nécessaires au catalogue produit
+**Et** elle ne crée aucune table de disponibilité, publication, commande, composition AMAP ou préparation future.
+
+**Étant donné** le formulaire de création d'un produit
+**Quand** l'administrateur renseigne un nom, une description facultative, une unité contrôlée, un prix unitaire et un état
+**Alors** le produit est créé avec un identifiant opaque et une version initiale
+**Et** les seules unités V1 proposées sont `kg`, `unité` et `botte`.
+
+**Étant donné** un produit actif
+**Quand** son prix est saisi ou modifié
+**Alors** la valeur est strictement positive, stockée sans erreur d'arrondi monétaire et affichée en euros selon la locale française avec son unité
+**Et** un prix nul, négatif, absent ou comportant une précision non supportée est refusé avec une erreur RFC 9457 reliée au champ.
+
+**Étant donné** un produit qui n'a encore été utilisé dans aucun historique métier
+**Quand** l'administrateur change son unité avec la version attendue
+**Alors** l'unité est mise à jour et l'action est auditée avec les valeurs avant/après
+**Et** le domaine expose une opération explicite permettant aux futurs usages de verrouiller définitivement cette unité lors de leur première utilisation.
+
+**Étant donné** un produit dont l'unité a été verrouillée par un usage
+**Quand** l'administrateur tente de changer son unité
+**Alors** l'API refuse la modification sans changer les autres champs
+**Et** l'interface explique qu'un nouveau mode de vente exige de désactiver ce produit et d'en créer un autre.
+
+**Étant donné** un produit existant
+**Quand** l'administrateur modifie son nom, sa description ou son prix avec une `expectedVersion` courante
+**Alors** seules les valeurs courantes du catalogue sont mises à jour et un événement d'audit immuable est créé
+**Et** le contrat garantit que les futurs snapshots historiques ne seront jamais réécrits par cette modification.
+
+**Étant donné** un produit actif ou inactif
+**Quand** l'administrateur change son état
+**Alors** l'inactivation le retire des sélections destinées aux nouveaux usages et la réactivation le rend de nouveau sélectionnable
+**Et** aucune opération de suppression physique n'est exposée par l'API ou l'interface.
+
+**Étant donné** qu'un produit a changé depuis l'ouverture du formulaire
+**Quand** une mutation est soumise avec une `expectedVersion` obsolète
+**Alors** l'API refuse l'écriture sans écrasement silencieux
+**Et** l'écran conserve les saisies, explique le conflit et propose de charger la nouvelle version.
+
+**Étant donné** une mutation produit rejouée après une réponse réseau incertaine
+**Quand** le même identifiant d'idempotence est soumis pour la même opération et le même administrateur
+**Alors** l'API retourne le résultat initial sans créer ni appliquer une seconde modification
+**Et** un identifiant réutilisé avec un contenu différent est refusé.
+
+**Étant donné** la liste des produits
+**Quand** l'administrateur la consulte sur mobile
+**Alors** chaque `EntityCard` présente le nom, l'unité, le prix et l'état `Actif` ou `Inactif` avec une cible native unique
+**Et** l'état du produit reste visuellement et sémantiquement distinct de sa future disponibilité.
+
+**Étant donné** les écrans de liste et d'édition
+**Quand** ils sont utilisés entre `320 px` et `1440 px`, au clavier ou avec une technologie d'assistance
+**Alors** labels, unités, erreurs, focus, cibles tactiles et annonces de sauvegarde respectent le contrat UX
+**Et** l'inactivation utilise un `ConfirmDialog` accessible expliquant la conservation des historiques.
+
+**Étant donné** les rôles de l'application
+**Quand** un adhérent, un utilisateur anonyme ou un compte désactivé appelle une opération de catalogue administrative
+**Alors** l'API refuse sans divulguer de donnée interne ni effectuer d'écriture
+**Et** seuls les administrateurs actifs peuvent créer ou modifier un produit.
+
+### Story 2.2 : Maintenir le brouillon des disponibilités
+
+En tant que maraîcher administrateur,
+je veux enregistrer l'état et la quantité estimée de chaque produit sans les publier,
+afin de préparer une offre fiable sans créer de faux stock.
+
+**Critères d'acceptation :**
+
+**Étant donné** un produit nouvellement créé
+**Quand** sa disponibilité est initialisée
+**Alors** elle commence à `Indisponible` avec une quantité `Non suivie` et une version propre
+**Et** cette initialisation ne rend aucune offre publique et ne crée aucun snapshot.
+
+**Étant donné** un produit actif
+**Quand** l'administrateur utilise `AvailabilityStatusControl`
+**Alors** il peut choisir exactement `Disponible`, `Selon disponibilité` ou `Indisponible`
+**Et** le statut combine libellé, signal visuel et état accessible sans dépendre uniquement de la couleur.
+
+**Étant donné** une disponibilité `Disponible` ou `Selon disponibilité`
+**Quand** l'administrateur configure la quantité
+**Alors** il peut choisir `Connue et visible`, `Connue mais masquée` ou `Non suivie`
+**Et** une quantité connue exige une valeur, tandis que `Non suivie` conserve une absence explicite qui n'est jamais interprétée comme zéro.
+
+**Étant donné** une quantité connue pour un produit vendu au `kg`
+**Quand** sa valeur est enregistrée
+**Alors** elle accepte une valeur positive ou nulle avec jusqu'à trois décimales et affiche toujours `kg`
+**Et** une valeur négative, non numérique ou trop précise est refusée au niveau du champ.
+
+**Étant donné** une quantité connue pour un produit vendu à l'`unité` ou à la `botte`
+**Quand** sa valeur est enregistrée
+**Alors** elle accepte uniquement un entier positif ou nul et affiche l'unité correspondante
+**Et** une fraction est refusée avec une explication précise.
+
+**Étant donné** une quantité connue existante
+**Quand** le produit passe à `Indisponible`
+**Alors** la valeur peut être conservée techniquement mais elle est masquée dans la vue opérationnelle principale et ne sera pas exposée publiquement
+**Et** le changement n'altère aucun usage ou historique existant.
+
+**Étant donné** une modification non encore enregistrée
+**Quand** l'administrateur consulte la carte du produit
+**Alors** l'état `Non enregistré` est explicite et l'action de sauvegarde reste distincte de toute future action de publication
+**Et** après succès, l'état devient `Enregistré` avec un retour annoncé sans laisser croire que le changement est public.
+
+**Étant donné** plusieurs produits dans la vue des disponibilités
+**Quand** l'administrateur modifie puis enregistre l'un d'eux
+**Alors** seule la disponibilité ciblée est mutée et auditée avec ses valeurs avant/après
+**Et** les autres saisies non soumises restent intactes.
+
+**Étant donné** une disponibilité modifiée depuis son ouverture
+**Quand** l'administrateur soumet une `expectedVersion` obsolète
+**Alors** l'API refuse l'écriture sans écrasement silencieux et affiche l'état `Conflit`
+**Et** l'écran conserve la saisie locale, explique l'écart et propose de charger la version courante.
+
+**Étant donné** une réponse réseau incertaine
+**Quand** une sauvegarde est répétée avec le même identifiant de mutation
+**Alors** l'API retourne le résultat initial sans appliquer deux fois le changement
+**Et** l'interface distingue `Non envoyée`, `Vérification en cours` et `Échec confirmé`.
+
+**Étant donné** une commande, une préparation, une livraison ou une vente extérieure future
+**Quand** cette opération se produit
+**Alors** aucun contrat du domaine disponibilité ne permet une réservation ou une décrémentation automatique
+**Et** seuls les cas d'usage administratifs explicites de cette story peuvent changer la disponibilité courante.
+
+**Étant donné** la vue mobile des disponibilités
+**Quand** elle est utilisée à partir de `320 px`, au clavier ou avec un lecteur d'écran
+**Alors** statut, quantité, visibilité, unité et sauvegarde restent utilisables en trois actions ou moins depuis la vue de travail
+**Et** `NumericInput`, retours de sauvegarde, cibles tactiles et focus respectent le contrat UX.
+
+**Étant donné** un produit inactif
+**Quand** les disponibilités sont consultées
+**Alors** son état courant reste accessible à l'administrateur pour compréhension historique mais il est exclu des nouveaux usages
+**Et** l'interface ne confond jamais `Inactif` avec `Indisponible`.
+
+### Story 2.3 : Réviser et publier une offre immuable
+
+En tant que maraîcher administrateur,
+je veux comparer mon brouillon à l'offre active puis publier une version immuable,
+afin que les clients consultent une offre fiable sans voir mes changements en cours.
+
+**Critères d'acceptation :**
+
+**Étant donné** qu'aucune publication n'existe encore
+**Quand** l'administrateur ouvre la revue
+**Alors** `PublicationDiff` présente une « Première publication » avec le nombre de produits actifs inclus
+**Et** l'URL publique affiche jusque-là un état vide expliquant qu'aucune offre n'est disponible.
+
+**Étant donné** une publication active et un brouillon modifié
+**Quand** l'administrateur ouvre la revue
+**Alors** le système compare une version précise du brouillon au dernier snapshot et liste séparément ajouts, modifications et retraits de produits, prix, statuts, quantités et visibilité
+**Et** la revue affiche la version, l'horodatage et le nombre total de changements.
+
+**Étant donné** que le brouillon correspond exactement à la dernière publication
+**Quand** l'écran de revue est ouvert directement
+**Alors** il affiche « Rien à publier » et propose un retour aux disponibilités
+**Et** aucune action de publication ni aucun nouveau snapshot identique n'est disponible.
+
+**Étant donné** une revue courante contenant des changements
+**Quand** l'administrateur confirme « Publier maintenant »
+**Alors** une transaction crée un snapshot immuable avec un identifiant opaque, une version, l'horodatage et les valeurs appliquées de chaque produit actif publié
+**Et** elle fige notamment libellé, description, unité, prix, disponibilité, quantité estimée et visibilité sans référencer les valeurs courantes pour leur restitution future.
+
+**Étant donné** qu'un produit apparaît pour la première fois dans un snapshot publié
+**Quand** la transaction réussit
+**Alors** son unité est verrouillée dans la même transaction
+**Et** une modification ultérieure du catalogue ne peut ni changer cette unité dans l'historique ni réécrire le snapshot.
+
+**Étant donné** que le brouillon change après l'ouverture de la revue
+**Quand** l'administrateur publie la version devenue obsolète
+**Alors** l'API refuse atomiquement avec un conflit RFC 9457 et ne crée aucun snapshot partiel
+**Et** l'écran annonce l'écart et propose « Recharger la revue » en conservant les choix encore pertinents.
+
+**Étant donné** une requête de publication répétée après une réponse réseau incertaine
+**Quand** le même identifiant d'idempotence est rejoué par le même administrateur
+**Alors** l'API retourne le snapshot initial sans créer une seconde publication
+**Et** l'interface vérifie le résultat serveur avant d'autoriser une nouvelle tentative.
+
+**Étant donné** une publication réussie
+**Quand** la confirmation est affichée
+**Alors** elle indique l'heure, l'identifiant et le nombre de changements publiés
+**Et** seul le compteur correspondant à la version publiée revient à zéro; toute modification enregistrée en parallèle reste signalée comme non publiée.
+
+**Étant donné** l'URL publique unique de l'offre
+**Quand** un visiteur l'ouvre après publication
+**Alors** elle restitue uniquement le dernier snapshot actif, sans dépendre des produits ou disponibilités courants
+**Et** un changement de brouillon ou une publication antérieure ne modifie jamais ce contenu.
+
+**Étant donné** un produit `Disponible` ou `Selon disponibilité` dans le snapshot
+**Quand** l'offre publique est affichée
+**Alors** une quantité `Connue et visible` est montrée avec son unité, tandis qu'une quantité `Connue mais masquée` ou `Non suivie` n'est pas révélée
+**Et** le statut et le prix figés restent lisibles sans suggérer une réservation.
+
+**Étant donné** un produit `Indisponible` ou inactif au moment de la publication
+**Quand** le snapshot est construit
+**Alors** un produit inactif est exclu et un produit publié comme `Indisponible` ne permet aucune future sélection de quantité
+**Et** une quantité techniquement conservée pour un produit indisponible n'est pas exposée.
+
+**Étant donné** l'offre publique
+**Quand** elle est consultée sur tout format pris en charge
+**Alors** elle indique explicitement que les quantités sont estimatives, non réservées et sans engagement de fourniture
+**Et** elle fonctionne de `320 px` à `1440 px`, au clavier, à `200 %` de texte et `400 %` de zoom sans défilement horizontal.
+
+**Étant donné** un identifiant de publication historique ou une URL de brouillon
+**Quand** un visiteur tente un accès public direct
+**Alors** aucun contenu historique ou non publié n'est rendu commandable ou exposé par cette route
+**Et** l'application renvoie vers l'offre publique courante sans divulguer les détails internes.
+
+**Étant donné** une publication réussie
+**Quand** la transaction est validée
+**Alors** un événement d'audit immuable conserve l'acteur, la version source, l'identifiant du snapshot et le résumé des changements
+**Et** aucun email n'est requis pour que la publication reste active et utilisable.
+
+### Story 2.4 : Consulter l'historique des publications
+
+En tant que maraîcher administrateur,
+je veux retrouver chaque offre publiée et son contenu exact,
+afin de comprendre ce qui était présenté aux clients à une date donnée.
+
+**Critères d'acceptation :**
+
+**Étant donné** qu'aucune publication n'existe
+**Quand** l'administrateur ouvre l'historique
+**Alors** un `EmptyState` explique qu'aucune offre n'a encore été publiée
+**Et** il propose un accès direct aux disponibilités si le rôle le permet.
+
+**Étant donné** plusieurs publications
+**Quand** l'historique est consulté
+**Alors** elles sont triées de la plus récente à la plus ancienne avec identifiant, date `Europe/Paris`, auteur et nombre de produits
+**Et** la liste utilise un curseur opaque stable sans doublon ni omission lorsque de nouvelles publications sont ajoutées.
+
+**Étant donné** une publication historique
+**Quand** l'administrateur ouvre son détail
+**Alors** il voit exactement les produits, libellés, descriptions, unités, prix, statuts, quantités et règles de visibilité figés dans ce snapshot
+**Et** aucune valeur n'est recalculée depuis le catalogue ou les disponibilités courants.
+
+**Étant donné** une publication qui n'est pas la première
+**Quand** son détail est affiché
+**Alors** `PublicationDiff` permet de comparer ce snapshot au précédent et distingue ajouts, modifications et retraits
+**Et** le résultat de la comparaison reste déterministe même après des modifications ultérieures du catalogue.
+
+**Étant donné** un snapshot historique
+**Quand** un administrateur tente de le modifier, supprimer ou réactiver comme brouillon
+**Alors** aucune opération correspondante n'est disponible et l'API refuse toute mutation
+**Et** la seule offre accessible publiquement reste la dernière publication active.
+
+**Étant donné** un visiteur anonyme, un adhérent ou un compte désactivé
+**Quand** il tente d'appeler une route d'historique ou de détail administratif
+**Alors** l'accès est refusé sans divulguer l'existence ni le contenu du snapshot
+**Et** connaître son identifiant opaque ne permet pas de contourner cette restriction.
+
+**Étant donné** un curseur altéré, une période invalide ou un snapshot inconnu
+**Quand** l'API reçoit la requête
+**Alors** elle retourne une erreur RFC 9457 sans détail interne
+**Et** aucune donnée d'un autre snapshot n'est incluse dans la réponse.
+
+**Étant donné** l'historique sur mobile
+**Quand** les publications sont parcourues
+**Alors** chaque `EntityCard` ouvre un détail unique et présente date, identifiant et volume dans un ordre lisible
+**Et** tablette et desktop peuvent utiliser `ResponsivePane` uniquement si le master/detail réduit réellement les allers-retours.
+
+**Étant donné** le chargement progressif ou un échec réseau
+**Quand** l'état change
+**Alors** la structure est préservée par un skeleton inerte, la progression est annoncée et les résultats déjà chargés restent visibles
+**Et** une reprise ne duplique ni ne réordonne les publications affichées.
+
+**Étant donné** les Stories 2.1 à 2.4
+**Quand** elles sont exécutées sans les stories de consentement ou campagne
+**Alors** le maraîcher peut gérer, publier et historiser une offre complète tandis que le public consulte la dernière version
+**Et** aucune story future n'est nécessaire à ce parcours de publication sans email.
+
+### Story 2.5 : S'inscrire et gérer son consentement aux publications
+
+En tant que visiteur,
+je veux choisir librement de recevoir les publications et pouvoir retirer ce choix,
+afin de maîtriser les communications envoyées à mon adresse email.
+
+**Critères d'acceptation :**
+
+**Étant donné** l'offre publique
+**Quand** un visiteur accède à l'inscription aux publications
+**Alors** il utilise un formulaire distinct de toute commande, ne demandant que son adresse email et son consentement explicite
+**Et** la case d'opt-in n'est jamais précochée ni nécessaire pour consulter l'offre ou commander ultérieurement.
+
+**Étant donné** le formulaire d'inscription
+**Quand** il est affiché
+**Alors** il présente une mention d'information versionnée indiquant responsable, finalité, base de consentement, destinataires, durée ou critère de conservation, droit de retrait et contact
+**Et** l'identité légale, les prestataires, transferts et durées restent configurables et doivent être validés avant mise en production.
+
+**Étant donné** une adresse valide et une case d'opt-in cochée
+**Quand** le formulaire est soumis
+**Alors** l'adresse est normalisée et un abonnement actif unique est créé
+**Et** un événement immuable conserve l'adresse concernée, l'état `Opt-in`, l'horodatage, la source, le texte exact et la version de la mention affichée.
+
+**Étant donné** une adresse déjà activement inscrite
+**Quand** le formulaire est soumis de nouveau
+**Alors** aucun abonnement ni événement d'opt-in dupliqué n'est créé
+**Et** la réponse confirme simplement que la demande est prise en compte sans exposer l'historique du consentement.
+
+**Étant donné** une adresse ayant précédemment retiré son consentement
+**Quand** elle est inscrite de nouveau avec un opt-in explicite
+**Alors** un nouvel événement immuable `Opt-in` est ajouté sans modifier l'événement de retrait antérieur
+**Et** l'abonnement redevient actif à partir de ce nouvel horodatage.
+
+**Étant donné** une soumission sans opt-in, avec une adresse invalide ou un formulaire périmé
+**Quand** l'API traite la demande
+**Alors** aucune inscription active n'est créée et une erreur précise est reliée au champ ou à la version de mention concernée
+**Et** les saisies valides restent présentes sans qu'aucun email soit envoyé.
+
+**Étant donné** la création ou réactivation d'un abonnement
+**Quand** l'inscription réussit
+**Alors** une confirmation est affichée immédiatement à l'écran
+**Et** aucun email de double opt-in, de bienvenue ou de gestion dédié n'est envoyé en V1.
+
+**Étant donné** le lien individuel inclus dans un futur email de publication
+**Quand** son détenteur ouvre la page de consentement
+**Alors** il peut consulter l'état actif de l'adresse masquée et retirer son consentement sans compte
+**Et** le jeton est opaque, limité à ce consentement, stocké sous forme de condensat et absent des logs ou historiques visibles.
+
+**Étant donné** un consentement actif
+**Quand** son détenteur confirme la désinscription
+**Alors** le retrait devient effectif immédiatement, crée un événement immuable `Retrait` avec date, source et version d'information, et empêche toute campagne future
+**Et** répéter la même action reste idempotent sans créer plusieurs retraits équivalents.
+
+**Étant donné** un lien invalide, révoqué ou altéré
+**Quand** la page est ouverte
+**Alors** aucune adresse ni donnée de consentement n'est révélée
+**Et** l'écran propose uniquement le formulaire public d'inscription ou le contact vie privée.
+
+**Étant donné** un administrateur
+**Quand** il consulte l'état d'un abonnement email
+**Alors** il voit le statut, les dates, sources et versions de preuve nécessaires
+**Et** aucune action ne lui permet de réactiver silencieusement un consentement retiré.
+
+**Étant donné** une inscription ou un retrait concurrent
+**Quand** une mutation utilise une version obsolète ou est rejouée
+**Alors** l'API préserve une chronologie unique et retourne le résultat déjà établi sans événement contradictoire
+**Et** aucun retrait ne peut être écrasé par une campagne préparée antérieurement.
+
+**Étant donné** les écrans publics de consentement
+**Quand** ils sont utilisés sur mobile, au clavier ou avec un lecteur d'écran
+**Alors** labels, statut, erreurs, résumé focusable et confirmation sont accessibles et annoncés
+**Et** l'information juridique reste lisible à `200 %` de texte et `400 %` de zoom sans masquer l'action principale.
+
+### Story 2.6 : Envoyer une campagne de publication fiable
+
+En tant que maraîcher administrateur,
+je veux accompagner facultativement une publication d'un email aux abonnés consentants,
+afin de diffuser mon offre sans bloquer sa disponibilité ni contacter une personne retirée.
+
+**Critères d'acceptation :**
+
+**Étant donné** la revue d'une offre prête à publier
+**Quand** l'administrateur choisit le canal email
+**Alors** il voit le message, le nombre de destinataires actuellement consentants et les exclusions connues avant confirmation
+**Et** publier sans email reste toujours possible et constitue une opération complète.
+
+**Étant donné** une confirmation avec envoi email
+**Quand** la publication réussit
+**Alors** le snapshot devient actif indépendamment, puis une campagne distincte conserve son contenu, sa publication source et son état
+**Et** un échec de création, d'exécution ou d'envoi de la campagne ne retire ni ne modifie le snapshot publié.
+
+**Étant donné** le contenu d'une campagne
+**Quand** l'email est construit
+**Alors** il contient l'identité de l'exploitation, une adresse de réponse, l'objet et le message de la publication, le lien vers l'offre publique et un lien individuel de gestion du consentement
+**Et** il ne contient aucune donnée métier ou personnelle non nécessaire.
+
+**Étant donné** une campagne prête à être distribuée
+**Quand** ses destinataires sont matérialisés
+**Alors** chaque adresse normalisée apparaît au plus une fois et chaque livraison conserve campagne, publication, destinataire, consentement source, statut et nombre de tentatives
+**Et** les adresses retirées, dupliquées ou déjà marquées en échec définitif sont exclues et comptabilisées par catégorie.
+
+**Étant donné** un consentement retiré après la préparation mais avant l'envoi
+**Quand** le worker traite le destinataire
+**Alors** il revalide l'opt-in courant et n'envoie aucun email
+**Et** la livraison est enregistrée comme exclue sans pouvoir être relancée par cette campagne.
+
+**Étant donné** une campagne créée
+**Quand** son traitement asynchrone est planifié
+**Alors** un job persistant PostgreSQL est réclamé atomiquement avec un verrou temporaire par l'unique worker configuré dans l'environnement
+**Et** une perte ou expiration de verrou permet la reprise sans doubler les effets.
+
+**Étant donné** une livraison éligible
+**Quand** le worker appelle Resend via le port fournisseur
+**Alors** il utilise une clé d'idempotence stable propre à la campagne et au destinataire
+**Et** une reprise retourne ou retrouve le résultat initial sans renvoyer aux destinataires déjà traités.
+
+**Étant donné** un échec temporaire Resend
+**Quand** une tentative échoue
+**Alors** la livraison est retentée au plus deux fois après la tentative initiale, avec chaque tentative horodatée et journalisée
+**Et** après la dernière reprise elle reste en échec consultable sans bloquer les autres destinataires.
+
+**Étant donné** un échec définitif signalé par Resend
+**Quand** le résultat est reçu
+**Alors** aucune reprise n'est planifiée et l'adresse est placée en suppression pour les campagnes suivantes
+**Et** l'événement conserve le motif fournisseur utile sans exposer de secret ou contenu personnel dans les logs.
+
+**Étant donné** une campagne sans destinataire éligible
+**Quand** l'offre est publiée
+**Alors** la publication réussit sans envoi et l'interface indique explicitement « Offre publiée, aucun destinataire consentant »
+**Et** aucun job inutile n'est créé.
+
+**Étant donné** une campagne partiellement terminée
+**Quand** l'administrateur consulte son résultat
+**Alors** il voit les nombres `En attente`, `Envoyé`, `Exclu`, `Échec temporaire` et `Échec définitif`, avec le détail autorisé
+**Et** l'action de reprise cible uniquement les échecs temporaires encore admissibles.
+
+**Étant donné** une campagne terminée ou en échec
+**Quand** l'occurrence opérationnelle ou une autre fonction de l'application est utilisée
+**Alors** aucune indisponibilité de Resend ou du worker ne bloque consultation de l'offre, commandes futures, préparation ou clôture
+**Et** l'API permet de diagnostiquer et reprendre le traitement indépendamment de la publication.
+
+**Étant donné** l'écran de résultat sur mobile ou avec une technologie d'assistance
+**Quand** les statuts évoluent
+**Alors** les compteurs textuels, annonces polies, états de chargement et erreurs rendent la progression compréhensible sans couleur seule
+**Et** aucune actualisation automatique ne déplace le focus ou change le contexte sans annonce.
+
+**Étant donné** une campagne et ses livraisons
+**Quand** leur persistance et leur audit sont inspectés
+**Alors** les enregistrements conservent contenu, snapshot source, destinataire, statuts, tentatives et résultats sans permettre de réécrire les événements passés
+**Et** création de campagne, envoi, exclusion, reprise et échec significatif sont auditables.
+
+**Étant donné** l'environnement de production
+**Quand** Resend est activé
+**Alors** ses clés restent dans l'environnement, son domaine expéditeur et son adresse de réponse sont vérifiés, et son contrat de sous-traitance, sa localisation et ses transferts ont été validés
+**Et** les tests automatisés utilisent un adaptateur contrôlé sans effectuer d'envoi réel.
+
+**Étant donné** les décisions email V1
+**Quand** les types d'emails autorisés sont vérifiés
+**Alors** seuls les publications consenties et l'email exceptionnel de réinitialisation de mot de passe peuvent utiliser le port Resend
+**Et** tout autre email transactionnel, rappel ou notification de statut est refusé par configuration et par test.
