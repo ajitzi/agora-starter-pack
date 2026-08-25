@@ -2775,3 +2775,367 @@ afin de maintenir un solde fiable sans double débit.
 **Quand** l'administrateur consulte le solde ou confirme une action
 **Alors** `StatusBadge`, progression, conséquences, dialogues et focus respectent le contrat UX
 **Et** toute correction destructive reste secondaire, explicitement motivée et distincte du workflow nominal.
+
+## Epic 6 : Gérer son prochain panier AMAP
+
+Permettre à l'adhérent de consulter son prochain panier et son historique, puis d'effectuer avant échéance les changements autorisés sur cette seule livraison.
+
+### Story 6.1 : Consulter son prochain panier et son historique
+
+En tant qu'adhérent AMAP,
+je veux voir mon prochain panier, mon solde et mes événements passés,
+afin de comprendre ce qui sera préparé et l'état de mon abonnement.
+
+**Critères d'acceptation :**
+
+**Étant donné** un adhérent authentifié avec un abonnement actif
+**Quand** il ouvre son espace AMAP
+**Alors** la section `Votre prochain panier` affiche date, format, retrait prévu, date limite et nombre de paniers restants
+**Et** elle appartient uniquement à l'adhérent lié à la session.
+
+**Étant donné** une échéance qui n'a pas encore généré de commande
+**Quand** le prochain panier est affiché
+**Alors** la composition active, le retrait prévu et les exceptions datées sont présentés comme prévisionnels
+**Et** l'écran explique qu'ils seront figés lors de la génération sans les présenter comme une commande définitive.
+
+**Étant donné** une commande AMAP déjà générée
+**Quand** le prochain panier est affiché
+**Alors** composition, format, retrait, limite, remplacements autorisés et exceptions proviennent exclusivement de son snapshot
+**Et** une modification ultérieure de l'abonnement ou de la composition ne change pas silencieusement cet affichage.
+
+**Étant donné** une composition complète ou demi-panier
+**Quand** ses lignes sont présentées
+**Alors** chaque produit affiche son libellé, son unité et la quantité correspondant au format de l'abonnement
+**Et** un produit absent du demi-panier n'apparaît pas comme une ligne à quantité zéro.
+
+**Étant donné** une substitution, cession, suspension ou récupération exceptionnelle active
+**Quand** le prochain panier est consulté
+**Alors** son effet est clairement distingué de l'abonnement permanent
+**Et** titulaire, bénéficiaire éventuel, produit remplacé ou nouveau retrait sont affichés uniquement lorsque pertinents.
+
+**Étant donné** l'instant courant strictement avant la limite
+**Quand** l'adhérent consulte son panier
+**Alors** l'écran indique les actions encore possibles sans les exécuter : substitution, changement de retrait, cession ou suspension
+**Et** une action incompatible avec l'état courant est expliquée plutôt que simplement masquée.
+
+**Étant donné** que la limite est atteinte ou dépassée
+**Quand** le panier est consulté
+**Alors** toutes les actions adhérent passent en lecture seule avec la date limite et une explication
+**Et** le contenu du panier, son retrait et le canal de contact restent accessibles.
+
+**Étant donné** une échéance ou commande suspendue, annulée, livrée ou bloquée
+**Quand** elle est affichée
+**Alors** son statut combine texte et signal visuel et la prochaine action autorisée est expliquée
+**Et** aucune transition impossible n'est proposée.
+
+**Étant donné** l'historique AMAP
+**Quand** l'adhérent l'ouvre
+**Alors** il voit ses paniers générés et livrés, suspensions, cessions, substitutions, changements de retrait et consommations dans un ordre chronologique compréhensible
+**Et** la liste est paginée par curseur opaque sans doublon ni omission.
+
+**Étant donné** un événement historique
+**Quand** son détail est ouvert
+**Alors** il restitue les valeurs snapshotées et les acteurs visibles par l'adhérent sans recalcul depuis les paramètres actuels
+**Et** les motifs internes, données d'autres personnes et informations d'audit réservées à l'administration sont omis.
+
+**Étant donné** un adhérent sans abonnement actif ou sans prochaine échéance
+**Quand** il ouvre l'espace
+**Alors** un `EmptyState` explique la situation et indique de contacter l'exploitation
+**Et** aucune inscription ou résiliation en ligne n'est proposée.
+
+**Étant donné** un adhérent qui altère un identifiant
+**Quand** il tente d'accéder au panier, à la commande ou à l'historique d'un autre adhérent
+**Alors** l'API refuse sans confirmer l'existence de la ressource
+**Et** aucune donnée personnelle ou opérationnelle n'est divulguée.
+
+**Étant donné** l'espace AMAP sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** le prochain panier et l'historique sont parcourus
+**Alors** `EntityCard`, `StatusBadge`, dates, quantités, actions et chargement progressif respectent le contrat UX
+**Et** `Votre prochain panier` reste l'information prioritaire avant l'historique.
+
+### Story 6.2 : Choisir jusqu'à deux substitutions
+
+En tant qu'adhérent AMAP,
+je veux remplacer jusqu'à deux produits de mon prochain panier par des options autorisées,
+afin d'adapter cette livraison sans modifier mon abonnement.
+
+**Critères d'acceptation :**
+
+**Étant donné** une échéance active strictement avant sa limite
+**Quand** l'adhérent ouvre les substitutions
+**Alors** seuls les produits présents dans son format de panier et disposant d'au moins un remplacement autorisé sont proposés
+**Et** les options proviennent de la période courante avant génération ou du snapshot de la commande après génération.
+
+**Étant donné** un produit sélectionné
+**Quand** les remplacements possibles sont affichés
+**Alors** chaque option présente le produit, son unité et la quantité prédéfinie pour `Panier complet` ou `Demi-panier`
+**Et** aucun calcul d'équivalence de prix, de poids ou de valeur n'est affiché ou effectué.
+
+**Étant donné** moins de deux substitutions actives
+**Quand** l'adhérent choisit une option autorisée
+**Alors** une exception datée conserve produit d'origine, produit de remplacement, quantité applicable, auteur et horodatage
+**Et** l'abonnement permanent et la composition de référence ne sont pas modifiés.
+
+**Étant donné** deux substitutions déjà actives
+**Quand** une troisième est demandée
+**Alors** l'API la refuse et explique la limite globale V1
+**Et** l'adhérent peut retirer ou remplacer l'une des deux décisions existantes avant de poursuivre.
+
+**Étant donné** une substitution déjà appliquée à une ligne
+**Quand** l'adhérent tente de substituer le produit de remplacement
+**Alors** l'action est refusée afin d'empêcher une chaîne de substitutions
+**Et** seul le produit d'origine peut retrouver sa composition initiale ou recevoir une autre option directe.
+
+**Étant donné** une option devenue inactive ou non autorisée
+**Quand** l'adhérent soumet son choix
+**Alors** l'API revalide la règle courante ou snapshotée et refuse sans modifier le panier
+**Et** l'écran recharge les options encore disponibles.
+
+**Étant donné** une échéance non encore générée
+**Quand** la substitution est confirmée
+**Alors** elle est stockée sur l'échéance et sera appliquée atomiquement lors de la génération
+**Et** le prochain panier prévisionnel reflète immédiatement le changement.
+
+**Étant donné** une commande AMAP déjà générée
+**Quand** la substitution est confirmée ou retirée avant la limite
+**Alors** l'exception et la commande correspondante sont mises à jour dans la même transaction depuis leurs snapshots autorisés
+**Et** aucune divergence ne subsiste entre l'écran adhérent et la préparation administrative.
+
+**Étant donné** une échéance suspendue
+**Quand** une substitution est demandée
+**Alors** elle est refusée et les substitutions actives ont déjà été neutralisées par la suspension
+**Et** l'écran explique qu'une semaine suspendue ne permet aucune substitution.
+
+**Étant donné** que la limite est atteinte ou dépassée
+**Quand** une création, modification ou suppression est soumise
+**Alors** l'API refuse l'action même si l'écran avait été ouvert auparavant
+**Et** le panier reste consultable en lecture seule, l'administration conservant sa correction motivée.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucune troisième substitution, duplication ou divergence de commande n'est créée
+**Et** le résultat courant est rechargé avec les actions encore autorisées.
+
+**Étant donné** une substitution réussie
+**Quand** le prochain panier et l'historique sont consultés
+**Alors** produit d'origine, remplacement et quantité sont clairement visibles sans ambiguïté sur ce qui sera préparé
+**Et** un événement d'audit conserve les valeurs avant/après sans exposer d'information d'un autre adhérent.
+
+**Étant donné** l'éditeur sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** l'adhérent choisit ou retire une substitution
+**Alors** limites, options, unités, confirmations, focus et annonces respectent le contrat UX
+**Et** la modification réussie est reflétée immédiatement dans `Votre prochain panier`.
+
+### Story 6.3 : Changer exceptionnellement de retrait
+
+En tant qu'adhérent AMAP,
+je veux choisir une autre récupération pour mon prochain panier,
+afin d'adapter cette livraison sans modifier mon retrait habituel.
+
+**Critères d'acceptation :**
+
+**Étant donné** une échéance active strictement avant sa limite
+**Quand** l'adhérent ouvre le changement de retrait
+**Alors** seules les occurrences futures `Prévue`, actives, compatibles AMAP et avant leur propre limite sont proposées
+**Et** le retrait permanent de l'abonnement reste affiché comme référence.
+
+**Étant donné** une occurrence de marché
+**Quand** elle est choisie
+**Alors** l'exception conserve l'identifiant de l'occurrence datée et ses horaires figés
+**Et** elle ne conserve pas seulement le modèle récurrent du marché.
+
+**Étant donné** une occurrence de tournée
+**Quand** elle est choisie
+**Alors** un passage appartenant à l'ordre figé de cette occurrence est obligatoire
+**Et** le libellé, l'horaire approximatif et la position du passage sont présentés avant confirmation.
+
+**Étant donné** un nouveau retrait valide
+**Quand** l'adhérent confirme
+**Alors** une exception datée conserve retrait par défaut, retrait exceptionnel, auteur et horodatage
+**Et** le jour et point de retrait permanents de l'abonnement ne sont pas modifiés.
+
+**Étant donné** une échéance non encore générée
+**Quand** le changement est enregistré
+**Alors** il sera appliqué à la commande lors de sa génération
+**Et** le prochain panier prévisionnel affiche immédiatement le retrait exceptionnel.
+
+**Étant donné** une commande AMAP déjà générée
+**Quand** le retrait change avant la limite
+**Alors** l'exception et la commande sont mises à jour atomiquement vers la nouvelle occurrence
+**Et** l'ancienne récupération reste conservée dans l'historique.
+
+**Étant donné** une échéance suspendue
+**Quand** un changement de retrait est demandé
+**Alors** l'action est refusée
+**Et** l'écran explique qu'une semaine suspendue ne permet aucun retrait exceptionnel.
+
+**Étant donné** une occurrence devenue annulée, terminée ou arrivée à sa limite
+**Quand** l'adhérent confirme un formulaire ouvert auparavant
+**Alors** l'API refuse sans déplacer l'échéance ou la commande
+**Et** l'interface recharge les occurrences encore compatibles.
+
+**Étant donné** que la limite de l'échéance est atteinte ou dépassée
+**Quand** une création, modification ou suppression du retrait exceptionnel est soumise
+**Alors** l'action adhérent est refusée
+**Et** l'administration conserve la possibilité d'une correction motivée et auditée.
+
+**Étant donné** un retrait exceptionnel existant
+**Quand** l'adhérent revient au retrait par défaut avant la limite
+**Alors** l'exception est neutralisée et la commande générée éventuelle revient au retrait snapshoté de l'abonnement
+**Et** les deux changements restent visibles dans l'historique.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucune double exception ni divergence de commande n'est créée
+**Et** le résultat courant est rechargé avec une explication claire.
+
+**Étant donné** un changement réussi
+**Quand** le prochain panier est affiché
+**Alors** le nouveau retrait, sa date, ses horaires et son caractère exceptionnel sont immédiatement visibles
+**Et** l'audit conserve valeurs avant/après sans exposer d'autres adhérents.
+
+**Étant donné** le sélecteur sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** les occurrences sont parcourues et confirmées
+**Alors** `OccurrenceCard`, statuts, horaires, focus, erreurs et annonces respectent le contrat UX
+**Et** aucune occurrence indisponible n'est présentée comme sélectionnable.
+
+### Story 6.4 : Suspendre une échéance
+
+En tant qu'adhérent AMAP,
+je veux suspendre mon prochain panier avant la limite,
+afin de décaler cette livraison sans consommer mon solde.
+
+**Critères d'acceptation :**
+
+**Étant donné** une échéance active strictement avant sa limite
+**Quand** l'adhérent choisit `Suspendre ce panier`
+**Alors** un `ConfirmDialog` explique que le panier ne sera pas préparé, que le solde ne diminuera pas et que l'échéance sera décalée
+**Et** il liste toute cession, substitution ou récupération exceptionnelle qui sera neutralisée.
+
+**Étant donné** une cession active
+**Quand** la suspension est confirmée
+**Alors** la cession est explicitement annulée ou neutralisée dans la même transaction
+**Et** titulaire, bénéficiaire et raison de la neutralisation restent conservés dans l'historique.
+
+**Étant donné** des substitutions ou un retrait exceptionnel actifs
+**Quand** la suspension est confirmée
+**Alors** ces exceptions sont neutralisées et ne seront ni générées ni préparées
+**Et** les valeurs antérieures restent auditables sans modifier l'abonnement permanent.
+
+**Étant donné** une échéance non encore générée
+**Quand** la suspension réussit
+**Alors** elle est marquée suspendue et le job quotidien ne crée aucune commande pour cette date
+**Et** aucun événement de consommation n'est produit.
+
+**Étant donné** une commande AMAP déjà générée mais non livrée
+**Quand** la suspension réussit avant la limite
+**Alors** la commande passe à `Annulée` avec le motif `Suspension adhérent` et reste liée à l'échéance
+**Et** aucune nouvelle commande n'est recréée automatiquement pour cette clé.
+
+**Étant donné** l'abonnement du titulaire
+**Quand** l'échéance est suspendue
+**Alors** son solde reste inchangé et sa prochaine échéance est décalée selon la récurrence
+**Et** le retrait, format et limite permanents ne sont pas modifiés.
+
+**Étant donné** une suspension confirmée par l'adhérent
+**Quand** il tente de la retirer en ligne
+**Alors** l'action est indisponible pour cette échéance afin d'éviter de réactiver une commande annulée
+**Et** une correction exceptionnelle reste réservée à l'administration avec motif et audit.
+
+**Étant donné** que la limite est atteinte ou dépassée
+**Quand** la suspension est soumise depuis un écran ancien
+**Alors** l'API refuse sans annuler la commande ni déplacer l'échéance
+**Et** l'écran passe en lecture seule avec la date limite et le contact de l'exploitation.
+
+**Étant donné** une échéance déjà suspendue, livrée ou annulée pour une autre raison
+**Quand** une nouvelle suspension est demandée
+**Alors** aucune seconde suspension ou modification de solde n'est créée
+**Et** l'état courant et ses conséquences sont affichés.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** suspension, annulation de commande, neutralisation des exceptions et décalage sont appliqués au plus une fois
+**Et** aucun état intermédiaire incohérent ne subsiste.
+
+**Étant donné** une suspension réussie
+**Quand** l'historique est consulté
+**Alors** il affiche échéance initiale, date de suspension, auteur, motif facultatif, exceptions neutralisées et prochaine échéance
+**Et** l'audit conserve toutes les valeurs avant/après.
+
+**Étant donné** l'action sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** les conséquences sont lues et confirmées
+**Alors** le dialogue initialise le focus sur une action non destructive, distingue clairement retour et confirmation et restitue le focus au déclencheur
+**Et** le prochain panier reflète immédiatement la suspension sans ambiguïté.
+
+### Story 6.5 : Céder un panier à un bénéficiaire
+
+En tant qu'adhérent AMAP,
+je veux céder mon prochain panier à une autre personne,
+afin qu'elle puisse le récupérer sans transférer mon abonnement.
+
+**Critères d'acceptation :**
+
+**Étant donné** une échéance active strictement avant sa limite
+**Quand** l'adhérent choisit `Céder ce panier`
+**Alors** il renseigne le nom et le téléphone obligatoires du bénéficiaire, avec un email facultatif
+**Et** seuls les renseignements nécessaires à l'identification lors du retrait sont collectés.
+
+**Étant donné** les informations du bénéficiaire
+**Quand** la cession est confirmée
+**Alors** une exception datée conserve le titulaire, le bénéficiaire, ses coordonnées, l'auteur et l'horodatage
+**Et** l'abonnement reste exclusivement rattaché au titulaire.
+
+**Étant donné** une échéance non encore générée
+**Quand** la cession est enregistrée
+**Alors** elle sera snapshotée dans la future commande AMAP
+**Et** le prochain panier prévisionnel affiche immédiatement le bénéficiaire sans créer de compte.
+
+**Étant donné** une commande AMAP déjà générée
+**Quand** la cession est créée, modifiée ou retirée avant la limite
+**Alors** l'exception et la commande sont mises à jour atomiquement
+**Et** l'ancien bénéficiaire reste dans l'historique sans apparaître comme bénéficiaire courant.
+
+**Étant donné** une cession active
+**Quand** l'adhérent modifie aussi une substitution ou un retrait exceptionnel autorisé
+**Alors** ces exceptions peuvent coexister et restent rattachées à la même échéance
+**Et** le bénéficiaire voit appliquer le panier et le retrait finalement snapshotés sans devenir titulaire.
+
+**Étant donné** une échéance suspendue
+**Quand** une cession est demandée
+**Alors** l'action est refusée
+**Et** suspendre une échéance possédant une cession active exige et enregistre sa neutralisation explicite.
+
+**Étant donné** que la limite est atteinte ou dépassée
+**Quand** une création, modification ou suppression de cession est soumise
+**Alors** l'action adhérent est refusée même si le formulaire était déjà ouvert
+**Et** l'administration conserve une correction motivée et auditée.
+
+**Étant donné** une commande cédée au statut `Livrée`
+**Quand** la consommation est créée
+**Alors** exactement un panier est débité du solde du titulaire
+**Et** l'événement de consommation conserve titulaire, bénéficiaire et commande sans attribuer de solde au bénéficiaire.
+
+**Étant donné** une commande cédée annulée ou reportée avant livraison
+**Quand** le solde est inspecté
+**Alors** aucun panier n'est consommé
+**Et** l'historique conserve la cession et l'issue de la commande.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** une seule cession courante existe et aucune divergence avec la commande n'est créée
+**Et** l'écran recharge le bénéficiaire et les actions encore autorisées.
+
+**Étant donné** les surfaces opérationnelles
+**Quand** le bénéficiaire doit être identifié pour la distribution
+**Alors** son nom et son téléphone sont visibles uniquement aux administrateurs autorisés et au titulaire concerné selon le besoin
+**Et** ils sont masqués dans les listes ou historiques qui n'en ont pas besoin.
+
+**Étant donné** une cession réussie
+**Quand** le prochain panier et l'historique sont consultés
+**Alors** le titulaire, le bénéficiaire et le retrait sont présentés sans ambiguïté
+**Et** l'audit conserve les valeurs avant/après tandis que les données d'autres adhérents restent isolées.
+
+**Étant donné** le formulaire sur mobile, au clavier ou avec un lecteur d'écran
+**Quand** le bénéficiaire est saisi ou la cession confirmée
+**Alors** labels, champs obligatoires, résumé d'erreurs, consentement aux conséquences, focus et annonces respectent le contrat UX
+**Et** le prochain panier reflète immédiatement la cession après succès.
