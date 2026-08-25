@@ -175,7 +175,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Decision produit - gestion du consentement sans compte** : chaque email de publication contient un lien individuel permettant de consulter l'etat du consentement et de se desinscrire; apres retrait, une nouvelle inscription passe par le formulaire public et cree un nouvel evenement de consentement.
 - **Question ouverte PRD 1** : avant mise en production, le responsable de traitement doit confirmer que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
 - **Decision produit - propagation des modeles** : les occurrences deja generees restent independantes; modifier un marche ou une tournee ne les reecrit jamais et toute correction d'une occurrence existante est explicite et auditee.
-- **Question ouverte PRD 3** : confirmer si la limite de deux substitutions et la date limite portee par l'abonnement admettent des exceptions par semaine.
+- **Decision produit - regles AMAP V1** : la limite de deux substitutions est globale et la date limite est portee par l'abonnement puis figee sur la commande generee; aucune surcharge hebdomadaire de ces deux parametres n'est admise en V1.
 - **Validation juridique RGPD 1/12** : renseigner et faire valider le nom legal, l'adresse et le SIRET du responsable de traitement, ainsi que le contact vie privee et les coordonnees du DPO ou la mention de non-applicabilite.
 - **Validation juridique RGPD 2/12** : identifier l'hebergeur et le fournisseur d'email, leur raison sociale, leur pays de traitement, leurs sous-traitants ulterieurs et leurs contrats de sous-traitance.
 - **Validation juridique RGPD 3/12** : documenter les destinataires internes autorises et confirmer l'absence de transfert hors EEE ou les mecanismes et garanties de chaque transfert.
@@ -2323,3 +2323,455 @@ afin de terminer la journée sans laisser de commande ou de changement incohére
 **Quand** l'administrateur parcourt ou reprend les étapes
 **Alors** `ClosingSummary`, progression, actions fixes, confirmations, erreurs et focus respectent le contrat UX
 **Et** quitter puis revenir restaure l'étape et les décisions persistées sans demander de recommencer.
+
+## Epic 5 : Administrer et générer les paniers AMAP
+
+Permettre au maraîcher de gérer adhérents, abonnements, compositions et remplacements, puis de générer et traiter des commandes AMAP cohérentes et idempotentes.
+
+### Story 5.1 : Gérer les adhérents et abonnements AMAP
+
+En tant que maraîcher administrateur,
+je veux créer les adhérents et paramétrer leurs abonnements,
+afin de disposer d'une base fiable pour générer les prochains paniers.
+
+**Critères d'acceptation :**
+
+**Étant donné** un nouveau membre AMAP
+**Quand** l'administrateur renseigne son identité, son email et ses coordonnées nécessaires
+**Alors** une fiche adhérent et un compte de rôle `Adherent AMAP` sont créés sans mot de passe par défaut
+**Et** le mécanisme de réinitialisation autorisé en Story 1.3 envoie le lien permettant de définir le premier mot de passe.
+
+**Étant donné** un email déjà lié à un compte
+**Quand** l'administrateur crée l'adhérent
+**Alors** il peut rattacher la fiche au compte compatible existant sans dupliquer l'identité
+**Et** aucun compte administrateur ou adhérent déjà lié à une autre personne n'est réaffecté silencieusement.
+
+**Étant donné** une fiche adhérent
+**Quand** l'administrateur crée un abonnement
+**Alors** il renseigne le format `Panier complet` ou `Demi-panier`, le jour et point de retrait par défaut compatibles, un solde initial strictement positif, la prochaine échéance, la date limite de modification et l'état
+**Et** l'abonnement reçoit un identifiant opaque et une version initiale.
+
+**Étant donné** un adhérent possédant déjà un abonnement actif
+**Quand** un second abonnement actif est demandé
+**Alors** l'API refuse la création ou l'activation sans modifier l'abonnement existant
+**Et** l'interface propose d'ouvrir celui-ci.
+
+**Étant donné** le solde initial ou corrigé
+**Quand** sa valeur est validée
+**Alors** elle est exprimée en nombre entier de paniers et doit être strictement positive à l'activation
+**Et** une valeur nulle, négative ou fractionnaire est refusée avec une erreur liée au champ.
+
+**Étant donné** le retrait par défaut
+**Quand** il est sélectionné
+**Alors** il correspond à un mode actif et compatible avec les distributions AMAP
+**Et** le jour choisi permet de résoudre une occurrence `Prévue` sans rattacher l'abonnement à une occurrence historique précise.
+
+**Étant donné** la date limite de modification
+**Quand** elle est configurée
+**Alors** elle appartient à l'abonnement et s'applique aux échéances futures selon `Europe/Paris`
+**Et** aucune surcharge hebdomadaire de cette règle n'est disponible en V1.
+
+**Étant donné** un abonnement existant
+**Quand** l'administrateur modifie format, retrait par défaut, prochaine échéance ou limite
+**Alors** les nouvelles valeurs s'appliquent uniquement aux échéances et commandes non encore figées
+**Et** aucune commande AMAP déjà générée ni aucun historique n'est réécrit.
+
+**Étant donné** une résiliation ou suspension permanente de l'abonnement
+**Quand** l'administrateur la confirme avec le motif requis
+**Alors** aucune nouvelle échéance n'est générée après la date d'effet
+**Et** les commandes et consommations historiques restent consultables.
+
+**Étant donné** un adhérent ou visiteur
+**Quand** il tente de s'inscrire, résilier ou activer un abonnement en ligne
+**Alors** aucune opération publique correspondante n'est exposée en V1
+**Et** ces actions restent réservées à un administrateur authentifié.
+
+**Étant donné** un compte adhérent désactivé
+**Quand** son abonnement est consulté par l'administration
+**Alors** l'abonnement et son historique restent visibles mais l'adhérent ne peut plus ouvrir de session
+**Et** réactiver le compte ne modifie pas automatiquement l'état de l'abonnement.
+
+**Étant donné** une modification concurrente ou rejouée
+**Quand** la version est obsolète ou l'identifiant d'idempotence répété
+**Alors** aucune donnée n'est écrasée ni dupliquée et le résultat initial est retourné aux répétitions valides
+**Et** l'interface explique le conflit et recharge la version courante.
+
+**Étant donné** une création, modification, activation ou résiliation
+**Quand** la transaction réussit
+**Alors** compte, adhérent et abonnement sont persistés de façon cohérente et les événements significatifs sont audités
+**Et** aucune donnée de commande, composition ou échéance future n'est créée par anticipation.
+
+**Étant donné** les écrans adhérent et abonnement sur mobile
+**Quand** l'administrateur les consulte ou modifie
+**Alors** `EntityCard`, `StatusBadge`, formulaires, unités de solde, erreurs et actions fixes respectent le contrat UX
+**Et** compte, abonnement permanent et futures exceptions datées sont présentés comme des objets distincts.
+
+### Story 5.2 : Composer les paniers d'une semaine
+
+En tant que maraîcher administrateur,
+je veux définir la composition des paniers complets et demi-paniers pour une date donnée,
+afin de préparer une semaine AMAP avec des quantités explicites et ordonnées.
+
+**Critères d'acceptation :**
+
+**Étant donné** une semaine ou date de livraison sans composition
+**Quand** l'administrateur crée la composition
+**Alors** elle reçoit une période locale `Europe/Paris`, un état, une version et une liste ordonnée de lignes
+**Et** une seule composition active peut s'appliquer à une même date de livraison.
+
+**Étant donné** l'ajout d'un produit
+**Quand** la ligne est configurée
+**Alors** la quantité du panier complet est explicite et la présence dans le demi-panier est choisie séparément
+**Et** si le produit est présent dans le demi-panier, sa quantité propre est obligatoire et indépendante de celle du panier complet.
+
+**Étant donné** un produit absent du demi-panier
+**Quand** la ligne est enregistrée
+**Alors** cette absence est stockée comme un choix distinct
+**Et** elle n'est jamais représentée ou interprétée comme une quantité réelle égale à zéro.
+
+**Étant donné** une quantité pour un produit au `kg`
+**Quand** elle est validée
+**Alors** elle accepte une valeur strictement positive avec jusqu'à trois décimales
+**Et** une quantité pour `unité` ou `botte` accepte uniquement un entier strictement positif.
+
+**Étant donné** un produit actif mais actuellement `Indisponible`
+**Quand** il est ajouté à une composition future
+**Alors** l'interface affiche un avertissement explicite sans bloquer automatiquement l'ajout
+**Et** aucune disponibilité courante n'est modifiée par la composition.
+
+**Étant donné** un produit inactif
+**Quand** l'administrateur tente de l'ajouter à une nouvelle composition
+**Alors** l'opération est refusée
+**Et** sa présence dans une composition historique reste consultable.
+
+**Étant donné** qu'un produit existe déjà dans la composition
+**Quand** une seconde ligne identique est ajoutée
+**Alors** elle est refusée par défaut
+**Et** une duplication exceptionnellement nécessaire exige une justification métier explicite, auditée et visible dans la composition.
+
+**Étant donné** plusieurs lignes
+**Quand** l'administrateur utilise `Monter` ou `Descendre`
+**Alors** l'ordre est mis à jour atomiquement avec des positions uniques et continues
+**Et** un glisser-déposer éventuel ne remplace jamais ces commandes accessibles.
+
+**Étant donné** une composition incomplète ou invalide
+**Quand** l'administrateur tente de l'activer
+**Alors** l'activation est refusée avec un résumé focusable des produits et quantités à corriger
+**Et** le brouillon et ses valeurs valides restent enregistrés.
+
+**Étant donné** une composition active
+**Quand** elle est modifiée avant génération de commandes
+**Alors** sa version courante devient la référence des futures générations
+**Et** chaque modification est auditée avec les valeurs avant/après.
+
+**Étant donné** qu'une ou plusieurs commandes AMAP ont déjà figé cette composition
+**Quand** la composition courante est modifiée
+**Alors** aucune commande générée ni aucun snapshot historique n'est réécrit
+**Et** l'interface indique combien de commandes utilisent déjà une version antérieure.
+
+**Étant donné** une modification concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucun ordre, produit ou quantité n'est écrasé ou dupliqué
+**Et** l'écran explique le conflit et recharge la composition courante.
+
+**Étant donné** l'éditeur hebdomadaire sur mobile ou tablette
+**Quand** les lignes sont ajoutées, ordonnées ou comparées
+**Alors** produit, unité, quantité complète, présence et quantité demi-panier restent lisibles et accessibles
+**Et** les positions, erreurs, sauvegardes et changements d'état sont annoncés conformément au contrat UX.
+
+### Story 5.3 : Configurer les remplacements autorisés
+
+En tant que maraîcher administrateur,
+je veux définir les remplacements possibles pour une semaine et chaque format de panier,
+afin d'offrir des substitutions maîtrisées sans calcul automatique d'équivalence.
+
+**Critères d'acceptation :**
+
+**Étant donné** une composition AMAP active
+**Quand** l'administrateur configure ses remplacements
+**Alors** chaque règle associe un produit présent dans la composition à un produit de remplacement autorisé pour la même période
+**Et** la règle reçoit une version et reste distincte des disponibilités et du catalogue courants.
+
+**Étant donné** un remplacement pour un panier complet
+**Quand** la règle est enregistrée
+**Alors** la quantité du produit de remplacement applicable au format complet est obligatoire et explicite
+**Et** elle respecte l'unité du produit de remplacement.
+
+**Étant donné** que le produit d'origine est inclus dans le demi-panier
+**Quand** le remplacement y est autorisé
+**Alors** une quantité indépendante pour le demi-panier est obligatoire
+**Et** elle n'est jamais déduite automatiquement de la quantité du panier complet.
+
+**Étant donné** que le produit d'origine est absent du demi-panier
+**Quand** l'administrateur tente de définir une quantité de remplacement pour ce format
+**Alors** l'opération est refusée
+**Et** l'absence reste distincte d'une quantité égale à zéro.
+
+**Étant donné** un produit vendu au `kg`
+**Quand** sa quantité de remplacement est validée
+**Alors** elle accepte une valeur strictement positive avec jusqu'à trois décimales
+**Et** `unité` et `botte` acceptent uniquement un entier strictement positif.
+
+**Étant donné** un produit d'origine et un candidat de remplacement identiques
+**Quand** la règle est soumise
+**Alors** elle est refusée comme substitution sans effet
+**Et** aucune règle dupliquée pour le même couple, la même période et le même format n'est créée.
+
+**Étant donné** un produit déjà utilisé comme remplacement
+**Quand** l'administrateur tente de le rendre lui-même substituable dans la même chaîne
+**Alors** la règle est refusée afin d'empêcher toute substitution en cascade
+**Et** une substitution appliquée ne peut jamais faire l'objet d'une seconde substitution.
+
+**Étant donné** un produit de remplacement inactif
+**Quand** il est sélectionné pour une nouvelle règle
+**Alors** l'opération est refusée
+**Et** s'il devient seulement `Indisponible`, un avertissement est affiché sans réécriture automatique des règles existantes.
+
+**Étant donné** plusieurs remplacements autorisés pour un produit
+**Quand** ils sont consultés
+**Alors** chaque option affiche libellé, unité et quantités complète et demi-panier applicables
+**Et** aucun prix, poids ou valeur d'équivalence n'est calculé ou promis.
+
+**Étant donné** des commandes AMAP déjà générées pour la période
+**Quand** une règle de remplacement est ajoutée, modifiée ou retirée
+**Alors** leur snapshot de remplacements autorisés reste inchangé
+**Et** seules les futures générations utilisent la nouvelle version.
+
+**Étant donné** une mutation concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucune règle ou quantité n'est écrasée ou dupliquée
+**Et** l'interface explique le conflit et recharge l'état courant.
+
+**Étant donné** une création, modification ou suppression logique de règle
+**Quand** la transaction réussit
+**Alors** les valeurs avant/après, la période, les produits et quantités sont audités
+**Et** aucun produit, disponibilité ou composition historique n'est modifié.
+
+**Étant donné** l'éditeur de remplacements sur mobile ou au clavier
+**Quand** les options sont configurées
+**Alors** les produits source et cible, formats, unités, erreurs et avertissements restent explicitement associés
+**Et** les contrôles, focus, annonces et cibles tactiles respectent le contrat UX.
+
+### Story 5.4 : Gérer les échéances et exceptions datées
+
+En tant que maraîcher administrateur,
+je veux préparer chaque échéance AMAP et ses exceptions sans modifier l'abonnement permanent,
+afin que la commande générée reflète exactement la semaine concernée.
+
+**Critères d'acceptation :**
+
+**Étant donné** un abonnement actif avec un solde positif
+**Quand** sa prochaine échéance est résolue
+**Alors** elle référence une date locale, une occurrence `Prévue` compatible, le format, le retrait prévu et la limite issue de l'abonnement
+**Et** elle possède son propre identifiant et sa propre version sans être encore une commande.
+
+**Étant donné** qu'aucune occurrence compatible ou aucune composition active n'existe
+**Quand** l'échéance est évaluée
+**Alors** elle est marquée bloquée avec la cause précise
+**Et** une alerte administrative est créée sans générer de commande vide ou invalide.
+
+**Étant donné** une échéance non générée
+**Quand** l'administrateur ouvre `AmapExceptionEditor`
+**Alors** il peut enregistrer pour cette date uniquement une suspension, une cession, un changement de retrait ou jusqu'à deux substitutions autorisées
+**Et** les paramètres permanents de l'abonnement restent inchangés.
+
+**Étant donné** une substitution datée
+**Quand** elle est enregistrée
+**Alors** elle choisit une règle autorisée pour la période et utilise la quantité correspondant au format de l'abonnement
+**Et** une troisième substitution, une option en cascade ou un produit non autorisé est refusé.
+
+**Étant donné** un changement de retrait
+**Quand** il est confirmé
+**Alors** la nouvelle occurrence est `Prévue`, compatible et strictement avant sa limite pour une action adhérent normale
+**Et** l'échéance conserve le retrait par défaut et le retrait exceptionnel comme valeurs distinctes.
+
+**Étant donné** une cession
+**Quand** elle est enregistrée
+**Alors** le titulaire reste propriétaire de l'abonnement et le bénéficiaire ainsi que ses coordonnées nécessaires sont conservés sur l'exception
+**Et** aucun compte ou abonnement n'est créé pour le bénéficiaire.
+
+**Étant donné** une suspension
+**Quand** elle est activée sur l'échéance
+**Alors** toute cession et substitution active de cette même échéance est explicitement annulée ou neutralisée avec audit
+**Et** l'échéance suspendue ne génère pas de commande et ne consomme aucun panier.
+
+**Étant donné** une échéance suspendue
+**Quand** la prochaine échéance de l'abonnement est recalculée
+**Alors** elle est décalée selon la récurrence sans modifier le solde
+**Et** l'ancienne échéance reste historisée avec auteur, dates et motif facultatif.
+
+**Étant donné** une commande AMAP déjà générée pour l'échéance
+**Quand** une exception encore autorisée est modifiée
+**Alors** la même transaction met à jour la commande correspondante plutôt que de laisser diverger exception et commande
+**Et** la composition et les règles snapshotées de cette commande restent les seules références autorisées.
+
+**Étant donné** que la limite est atteinte ou dépassée
+**Quand** une modification adhérent serait demandée
+**Alors** elle est refusée
+**Et** une correction administrative reste possible avec motif obligatoire et audit des valeurs avant/après.
+
+**Étant donné** une exception devenue concurrente ou rejouée
+**Quand** la version est obsolète ou la clé d'idempotence répétée
+**Alors** aucune exception contradictoire ni seconde mise à jour de commande n'est créée
+**Et** l'écran recharge l'échéance et n'affiche que les actions encore autorisées.
+
+**Étant donné** la vue hebdomadaire AMAP
+**Quand** l'administrateur consulte les échéances
+**Alors** elle distingue paniers standards, suspensions, cessions, retraits exceptionnels, substitutions et blocages
+**Et** les exceptions nécessitant une intervention sont prioritaires sans masquer les paniers normaux.
+
+**Étant donné** l'éditeur sur mobile ou au clavier
+**Quand** une exception est saisie ou confirmée
+**Alors** titulaire, bénéficiaire, retrait, date limite, format et effets de l'action restent visibles
+**Et** dialogues, erreurs, focus, cibles tactiles et annonces respectent le contrat UX.
+
+### Story 5.5 : Générer les commandes AMAP automatiquement
+
+En tant que maraîcher administrateur,
+je veux que les commandes AMAP soient générées automatiquement avant chaque retrait,
+afin qu'elles rejoignent la préparation sans validation manuelle ni doublon.
+
+**Critères d'acceptation :**
+
+**Étant donné** l'environnement actif
+**Quand** il est `06:00` dans `Europe/Paris`
+**Alors** un job persistant PostgreSQL évalue les échéances AMAP dues
+**Et** il est réclamé atomiquement par l'unique worker configuré, avec verrou temporaire, journal des tentatives et reprise après perte de verrou.
+
+**Étant donné** un abonnement actif avec un solde positif
+**Quand** son échéance se situe à trois jours calendaires ou moins de son occurrence de retrait
+**Alors** elle devient éligible à la génération
+**Et** le calcul utilise les dates locales `Europe/Paris`, y compris lors des changements d'heure.
+
+**Étant donné** une échéance située à plus de trois jours calendaires
+**Quand** le job quotidien s'exécute
+**Alors** aucune commande n'est créée
+**Et** l'échéance reste disponible pour une exécution ultérieure.
+
+**Étant donné** une échéance suspendue
+**Quand** elle est évaluée
+**Alors** aucune commande n'est générée et aucun panier n'est consommé
+**Et** la prochaine échéance calculée reste celle issue du décalage enregistré.
+
+**Étant donné** l'absence d'occurrence `Prévue` compatible, de composition active ou d'un solde positif
+**Quand** la génération est tentée
+**Alors** aucune commande partielle n'est créée et une alerte administrative identifie l'abonnement, l'échéance et le prérequis manquant
+**Et** résoudre le problème permet une reprise explicite ou lors de la prochaine exécution admissible.
+
+**Étant donné** une échéance valide
+**Quand** la commande est générée
+**Alors** elle fige l'abonnement, le titulaire, le format, l'occurrence, la limite, la composition ordonnée, les retraits et les remplacements autorisés
+**Et** elle applique atomiquement les exceptions datées actives de cette échéance.
+
+**Étant donné** une composition complète ou demi-panier
+**Quand** ses lignes sont snapshotées
+**Alors** les produits, libellés, unités et quantités du format concerné sont figés et les unités produit deviennent verrouillées
+**Et** une absence dans le demi-panier ne produit aucune ligne à quantité zéro.
+
+**Étant donné** une échéance comportant substitutions, cession ou retrait exceptionnel
+**Quand** la commande est créée
+**Alors** le snapshot distingue valeurs permanentes et exceptions appliquées, avec titulaire et bénéficiaire éventuel
+**Et** modifier ensuite l'abonnement, la composition ou les règles ne réécrit pas cette commande.
+
+**Étant donné** la clé composée de l'abonnement et de l'occurrence
+**Quand** plusieurs workers, reprises ou exécutions quotidiennes tentent la génération
+**Alors** une contrainte atomique garantit au plus une commande non annulée pour cette clé
+**Et** toutes les répétitions retrouvent le résultat existant sans doublon.
+
+**Étant donné** qu'une commande de cette clé a été annulée
+**Quand** une nouvelle génération est nécessaire
+**Alors** elle exige une reprise administrative explicite et motivée plutôt qu'une recréation automatique au prochain job
+**Et** l'historique relie la nouvelle tentative à la commande annulée.
+
+**Étant donné** une génération réussie
+**Quand** la transaction est validée
+**Alors** la commande reçoit la source `AMAP` et le statut initial `À préparer`, sans passer par `À valider`
+**Et** elle apparaît immédiatement dans l'occurrence, la vue agrégée et la file de préparation de l'Epic 4.
+
+**Étant donné** une commande AMAP générée
+**Quand** le workflow est interrogé
+**Alors** son parcours nominal est `À préparer → Préparée → Livrée`, avec annulation possible seulement avant livraison
+**Et** toute autre transition est refusée.
+
+**Étant donné** un échec après une réponse incertaine
+**Quand** le job est repris
+**Alors** la commande existante ou l'absence atomiquement confirmée est retrouvée avant toute nouvelle écriture
+**Et** chaque tentative, alerte, succès et reprise est journalisé et auditable.
+
+**Étant donné** une génération ou alerte
+**Quand** l'administrateur consulte le planning AMAP
+**Alors** le résultat distingue commandes générées, échéances suspendues et échéances bloquées
+**Et** aucune notification email ou modification de disponibilité n'est déclenchée.
+
+### Story 5.6 : Livrer et corriger la consommation des paniers
+
+En tant que maraîcher administrateur,
+je veux que chaque panier AMAP livré consomme exactement une échéance et puisse être corrigé de façon traçable,
+afin de maintenir un solde fiable sans double débit.
+
+**Critères d'acceptation :**
+
+**Étant donné** une commande AMAP `À préparer`
+**Quand** elle est préparée avec les capacités de l'Epic 4
+**Alors** elle peut passer à `Préparée` avec ses quantités réelles et exceptions figées
+**Et** aucune consommation de panier n'est encore créée.
+
+**Étant donné** une commande AMAP `Préparée` et un abonnement au solde positif
+**Quand** l'administrateur confirme sa livraison
+**Alors** la commande passe atomiquement à `Livrée`, le solde diminue exactement de un et un événement de consommation unique est créé
+**Et** cet événement référence la commande, l'abonnement, l'ancienne valeur, la nouvelle valeur, l'auteur et l'horodatage.
+
+**Étant donné** une commande cédée à un bénéficiaire
+**Quand** elle est livrée
+**Alors** la consommation est imputée à l'abonnement du titulaire initial
+**Et** l'événement conserve le titulaire et le bénéficiaire sans créer de solde pour ce dernier.
+
+**Étant donné** plusieurs confirmations ou workers concurrents
+**Quand** ils tentent de livrer la même commande
+**Alors** une contrainte unique sur la commande permet une seule consommation
+**Et** les répétitions idempotentes retournent le résultat initial sans second débit.
+
+**Étant donné** une commande AMAP annulée ou reportée avant livraison
+**Quand** son solde est inspecté
+**Alors** aucun panier n'est consommé
+**Et** un report vers une occurrence future conserve la commande sans créer d'événement de consommation.
+
+**Étant donné** une commande AMAP déjà `Livrée`
+**Quand** une annulation, un report ou une seconde livraison nominale est demandé
+**Alors** l'opération est refusée
+**Et** seule une correction exceptionnelle administrative peut modifier l'effet de consommation.
+
+**Étant donné** une erreur exceptionnelle sur une livraison AMAP
+**Quand** un administrateur demande sa correction avec un motif
+**Alors** une contre-écriture est créée et liée à l'événement de consommation initial sans modifier celui-ci
+**Et** le solde est corrigé atomiquement dans le sens explicite de la contre-écriture.
+
+**Étant donné** une contre-écriture déjà appliquée
+**Quand** la même correction est rejouée
+**Alors** aucune seconde correction de solde n'est produite
+**Et** toute correction supplémentaire exige une nouvelle décision motivée liée à la chaîne d'événements.
+
+**Étant donné** une correction de statut avant livraison
+**Quand** elle est autorisée par la matrice AMAP
+**Alors** le solde reste inchangé et l'historique conserve la transition
+**Et** toute transition autre que `À préparer → Préparée → Livrée` ou annulation avant livraison est refusée.
+
+**Étant donné** une livraison dont le solde ne permet plus la consommation
+**Quand** la transaction est revalidée
+**Alors** aucune livraison ni consommation partielle n'est enregistrée et une alerte administrative explique le conflit
+**Et** l'administrateur doit corriger l'abonnement avant de reprendre.
+
+**Étant donné** une consommation ou contre-écriture
+**Quand** l'historique de l'abonnement est consulté
+**Alors** il présente commande, occurrence, titulaire, bénéficiaire éventuel, variation et solde résultant
+**Et** les événements sont ordonnés et paginés avec un curseur opaque sans réécriture.
+
+**Étant donné** une livraison ou correction réussie
+**Quand** la transaction est validée
+**Alors** transition, consommation, contre-écriture, motif et valeurs avant/après sont audités
+**Et** aucune disponibilité ni campagne email n'est déclenchée.
+
+**Étant donné** les écrans de livraison et d'abonnement sur mobile
+**Quand** l'administrateur consulte le solde ou confirme une action
+**Alors** `StatusBadge`, progression, conséquences, dialogues et focus respectent le contrat UX
+**Et** toute correction destructive reste secondaire, explicitement motivée et distincte du workflow nominal.
