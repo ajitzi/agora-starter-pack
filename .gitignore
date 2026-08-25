@@ -1,5 +1,14 @@
 # macOS
 .DS_Store
+node_modules/
+.next/
+.adonisjs/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
 
 # JetBrains IDEs
 .idea/

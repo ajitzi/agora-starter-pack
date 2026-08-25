@@ -1,0 +1,14 @@
+{
+  "name": "@project/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.3.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}
