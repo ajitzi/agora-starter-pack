@@ -168,11 +168,11 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **Regle metier transverse - AMAP** : conserver l'abonnement sur l'adherent titulaire lors d'une cession, distinguer abonnement permanent et exception datee, et garantir qu'une livraison consomme exactement une echeance de maniere tracable.
 - **Regle metier transverse - cloture** : traiter la cloture comme un workflow serveur persistant qui revalide au dernier moment le statut de l'occurrence, l'absence de commande bloquante et la validite des changements de disponibilite.
 - **Incoherence a trancher - FR-035a / regle transverse** : FR-035a autorise au client la modification d'une commande `A preparer` avant la limite en la ramenant a `A valider`, tandis que la regle transverse interdit toute modification ou annulation une fois la preparation commencee; definir un critere unique et testable distinguant, si necessaire, commande acceptee et preparation effectivement commencee.
-- **Incoherence a trancher - FR-044 / FR-044a** : FR-044 qualifie de selectable une occurrence `Prevue`, `Terminee` ou `Annulee`, tandis que FR-044a limite la selection a une occurrence `Prevue` avant sa date limite; confirmer FR-044a comme filtre operationnel ou reformuler FR-044.
+- **Decision produit - FR-044 / FR-044a** : FR-044a prevaut comme filtre operationnel; seule une occurrence `Prevue` dont la date limite n'est pas depassee est selectable, tandis que les statuts `Terminee` et `Annulee` restent consultables mais non selectionnables.
 - **Decision produit - exception a FR-019** : l'email contenant un lien de reinitialisation de mot de passe est autorise en V1 comme unique email transactionnel; les autres emails transactionnels, rappels et notifications de statut restent interdits.
 - **Decision produit - gestion du consentement sans compte** : chaque email de publication contient un lien individuel permettant de consulter l'etat du consentement et de se desinscrire; apres retrait, une nouvelle inscription passe par le formulaire public et cree un nouvel evenement de consentement.
 - **Question ouverte PRD 1** : avant mise en production, le responsable de traitement doit confirmer que les durees de conservation et les mentions de confidentialite sont adaptees aux obligations legales applicables.
-- **Question ouverte PRD 2** : definir la propagation V1 des modifications d'un marche ou d'une tournee vers les occurrences futures existantes, soit toujours independantes, soit mises a jour seulement si non personnalisees et apres confirmation explicite.
+- **Decision produit - propagation des modeles** : les occurrences deja generees restent independantes; modifier un marche ou une tournee ne les reecrit jamais et toute correction d'une occurrence existante est explicite et auditee.
 - **Question ouverte PRD 3** : confirmer si la limite de deux substitutions et la date limite portee par l'abonnement admettent des exceptions par semaine.
 - **Validation juridique RGPD 1/12** : renseigner et faire valider le nom legal, l'adresse et le SIRET du responsable de traitement, ainsi que le contact vie privee et les coordonnees du DPO ou la mention de non-applicabilite.
 - **Validation juridique RGPD 2/12** : identifier l'hebergeur et le fournisseur d'email, leur raison sociale, leur pays de traitement, leurs sous-traitants ulterieurs et leurs contrats de sous-traitance.
@@ -352,10 +352,10 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 - **FR-044b** : Epic 3 - création, récurrence et cycle de vie des occurrences.
 - **FR-045** : Epic 3 - gestion des informations d'un marché récurrent.
 - **FR-046** : Epic 3 - distinction entre marché récurrent et occurrences.
-- **FR-047** : Epic 3 - rattachement des commandes à une occurrence de marché.
+- **FR-047** : Epic 4 - rattachement des commandes à une occurrence de marché.
 - **FR-048** : Epic 3 - gestion ordonnée des tournées et passages.
 - **FR-049** : Epic 3 - distinction entre tournée récurrente et occurrences.
-- **FR-050** : Epic 3 - rattachement des livraisons à une occurrence de tournée.
+- **FR-050** : Epic 4 - rattachement des livraisons à une occurrence de tournée.
 - **FR-051** : Epic 4 - priorisation des actions du jour et du lendemain.
 - **FR-052** : Epic 4 - visibilité des files de commandes et occurrences imminentes.
 - **FR-053** : Epic 4 - signalement des nouveautés et disponibilités anciennes.
@@ -423,7 +423,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre à l'administrateur d'organiser les lieux fixes, marchés et tournées sous forme de modèles récurrents et d'occurrences datées sélectionnables.
 
-**FR couvertes :** FR-042, FR-043, FR-044, FR-044a, FR-044b, FR-045, FR-046, FR-047, FR-048, FR-049, FR-050.
+**FR couvertes :** FR-042, FR-043, FR-044, FR-044a, FR-044b, FR-045, FR-046, FR-048, FR-049.
 
 **Notes d'implémentation/UX :** distinguer visuellement et techniquement les modèles permanents des occurrences datées, calculer les limites dans `Europe/Paris` et ne proposer à la commande que les occurrences `Prévue` encore ouvertes. Prévoir une réorganisation de tournée utilisable sans glisser-déposer.
 
@@ -431,7 +431,7 @@ Ce document fournit le découpage complet en epics et stories de la-cabane-du-me
 
 **Objectif utilisateur :** permettre au client de commander et suivre sans compte, et à l'administrateur de valider, préparer, ajuster, livrer, reporter ou annuler chaque commande jusqu'à la clôture de l'occurrence.
 
-**FR couvertes :** FR-009, FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-036, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-057, FR-058, FR-059, FR-059a, FR-081.
+**FR couvertes :** FR-009, FR-020, FR-021, FR-022, FR-023, FR-024, FR-025, FR-026, FR-027, FR-028, FR-029, FR-030, FR-031, FR-031a, FR-032, FR-032a, FR-033, FR-034, FR-035, FR-035a, FR-036, FR-037, FR-038, FR-039, FR-040, FR-041, FR-041a, FR-041b, FR-047, FR-050, FR-051, FR-052, FR-053, FR-054, FR-055, FR-056, FR-057, FR-058, FR-059, FR-059a, FR-081.
 
 **Notes d'implémentation/UX :** figer les données commerciales à la création, séparer montant indicatif et montant final et sécuriser le suivi par un jeton limité à une commande. Optimiser les vues `Aujourd'hui`, validation et préparation pour le traitement séquentiel; rendre la clôture persistante, guidée et revalidée côté serveur.
 
@@ -1271,3 +1271,304 @@ afin de diffuser mon offre sans bloquer sa disponibilité ni contacter une perso
 **Quand** les types d'emails autorisés sont vérifiés
 **Alors** seuls les publications consenties et l'email exceptionnel de réinitialisation de mot de passe peuvent utiliser le port Resend
 **Et** tout autre email transactionnel, rappel ou notification de statut est refusé par configuration et par test.
+
+## Epic 3 : Planifier les récupérations et distributions
+
+Permettre au maraîcher de configurer lieux fixes, marchés et tournées, puis de gérer leurs occurrences datées réellement proposées aux clients.
+
+### Story 3.1 : Gérer les modes et lieux de récupération
+
+En tant que maraîcher administrateur,
+je veux créer et maintenir mes modes de récupération,
+afin de disposer de lieux fixes, marchés et tournées clairement identifiés avant de les planifier.
+
+**Critères d'acceptation :**
+
+**Étant donné** qu'aucun mode de récupération n'existe
+**Quand** cette story est appliquée
+**Alors** elle crée uniquement l'agrégat, la persistance, l'API et les écrans nécessaires aux modes de récupération
+**Et** elle ne crée encore aucune occurrence, récurrence, commande ou étape de tournée.
+
+**Étant donné** le formulaire de création
+**Quand** l'administrateur renseigne un nom, un type et un état
+**Alors** le type provient exactement de `Lieu fixe`, `Marché` ou `Tournée` et le mode reçoit un identifiant opaque et une version initiale
+**Et** un lieu fixe permet aussi de renseigner une adresse et des instructions de retrait facultatives.
+
+**Étant donné** un mode existant qui n'a encore produit aucune occurrence
+**Quand** l'administrateur modifie son nom, son type, son adresse ou ses instructions avec la version attendue
+**Alors** les nouvelles valeurs sont enregistrées et auditées avec les valeurs avant/après
+**Et** aucune autre entité n'est créée ou modifiée implicitement.
+
+**Étant donné** un mode ayant déjà produit une occurrence
+**Quand** l'administrateur tente de changer son type fonctionnel
+**Alors** l'API refuse le changement sans altérer les autres champs
+**Et** l'interface explique qu'il faut désactiver ce mode et en créer un nouveau pour préserver la cohérence historique.
+
+**Étant donné** un mode actif
+**Quand** l'administrateur confirme sa désactivation
+**Alors** il est exclu de toute nouvelle planification ou sélection future
+**Et** les occurrences ou historiques existants ne sont ni supprimés ni modifiés.
+
+**Étant donné** un mode désactivé
+**Quand** l'administrateur le réactive
+**Alors** il redevient disponible pour de nouvelles occurrences
+**Et** aucune occurrence n'est créée automatiquement par la réactivation.
+
+**Étant donné** un mode existant
+**Quand** une suppression physique est tentée
+**Alors** aucune opération de suppression n'est exposée par l'interface
+**Et** l'API refuse la suppression afin de préserver les futurs rattachements historiques.
+
+**Étant donné** qu'un mode a changé depuis l'ouverture du formulaire
+**Quand** une mutation porte une `expectedVersion` obsolète
+**Alors** l'écriture est refusée sans écrasement silencieux
+**Et** l'écran conserve les saisies, explique le conflit et propose de charger la version courante.
+
+**Étant donné** une réponse réseau incertaine
+**Quand** la même mutation est rejouée avec son identifiant d'idempotence
+**Alors** le résultat initial est retourné sans créer de doublon ni appliquer deux fois la modification
+**Et** une réutilisation de l'identifiant avec un contenu différent est refusée.
+
+**Étant donné** la liste des modes
+**Quand** l'administrateur la consulte sur mobile
+**Alors** chaque `EntityCard` affiche nom, type et état avec une cible unique ouvrant le détail
+**Et** les états actifs et inactifs combinent texte et signal visuel sans dépendre de la couleur.
+
+**Étant donné** les écrans de création et d'édition
+**Quand** ils sont utilisés au clavier, avec un lecteur d'écran ou entre `320 px` et `1440 px`
+**Alors** labels, erreurs, résumé focusable, focus et actions tactiles respectent le contrat UX
+**Et** la désactivation utilise un `ConfirmDialog` expliquant ses conséquences sans masquer le contenu.
+
+**Étant donné** un utilisateur non administrateur ou un compte désactivé
+**Quand** il appelle une opération de gestion des modes
+**Alors** l'API refuse sans divulguer les données administratives ni effectuer d'écriture
+**Et** seuls les administrateurs actifs peuvent créer ou modifier ces modes.
+
+### Story 3.2 : Planifier les occurrences datées
+
+En tant que maraîcher administrateur,
+je veux créer et générer des occurrences datées pour mes modes de récupération,
+afin de proposer uniquement des créneaux réellement planifiés et encore ouverts.
+
+**Critères d'acceptation :**
+
+**Étant donné** un mode de récupération actif
+**Quand** l'administrateur crée une occurrence ponctuelle
+**Alors** il renseigne une date et heure de début, une date et heure de fin et une date et heure limite de commande dans `Europe/Paris`
+**Et** l'occurrence reçoit un identifiant opaque, une version et le statut initial `Prévue`.
+
+**Étant donné** les horaires d'une occurrence
+**Quand** ils sont validés
+**Alors** la fin doit être strictement postérieure au début et la limite de commande strictement antérieure au début
+**Et** une valeur inexistante ou ambiguë lors d'un changement d'heure est refusée avec une erreur RFC 9457 précise.
+
+**Étant donné** une occurrence persistée
+**Quand** ses instants sont stockés ou exposés par l'API
+**Alors** les calculs sont effectués dans `Europe/Paris`, puis les instants sont stockés en UTC et sérialisés en ISO 8601 avec offset
+**Et** les tests couvrent les passages aux heures d'été et d'hiver ainsi que l'instant exact de la limite.
+
+**Étant donné** une règle récurrente active
+**Quand** l'administrateur demande un aperçu jusqu'à 90 jours à l'avance
+**Alors** le système calcule les dates locales et affiche chaque occurrence proposée avant toute écriture
+**Et** aucune occurrence située au-delà du quatre-vingt-dixième jour local n'est proposée.
+
+**Étant donné** un aperçu de récurrence confirmé
+**Quand** les occurrences sont générées
+**Alors** chacune est créée au plus une fois pour la combinaison règle récurrente et date locale
+**Et** rejouer la génération avec le même identifiant d'idempotence retourne le résultat initial sans doublon.
+
+**Étant donné** qu'une date calculée correspond déjà à une occurrence indépendante
+**Quand** la génération est confirmée
+**Alors** l'occurrence existante n'est ni remplacée ni réécrite
+**Et** le résultat distingue clairement les occurrences créées, déjà présentes ou en conflit.
+
+**Étant donné** une occurrence future `Prévue`
+**Quand** l'administrateur modifie explicitement ses horaires ou sa limite avec la version attendue
+**Alors** seule cette occurrence est modifiée et l'action est auditée avec les valeurs avant/après
+**Et** le modèle récurrent et les autres occurrences restent inchangés.
+
+**Étant donné** une modification ultérieure du mode, du marché ou de la tournée source
+**Quand** des occurrences ont déjà été générées
+**Alors** leurs valeurs restent indépendantes et ne sont jamais propagées silencieusement
+**Et** toute correction doit être demandée explicitement occurrence par occurrence.
+
+**Étant donné** une occurrence dont le début est passé
+**Quand** une modification est tentée
+**Alors** tout changement est refusé sauf la transition autorisée vers `Terminée`
+**Et** aucune correction d'horaire, de limite ou de mode ne réécrit l'historique.
+
+**Étant donné** une occurrence `Prévue`
+**Quand** l'administrateur confirme son annulation
+**Alors** elle passe à `Annulée`, reste consultable et n'est plus sélectionnable
+**Et** le contrat conserve ses futurs rattachements de commandes afin que l'administration puisse les annuler ou les reporter avant clôture.
+
+**Étant donné** une occurrence `Annulée` ou `Terminée`
+**Quand** une réactivation ou suppression est tentée
+**Alors** l'opération est refusée et aucune suppression physique n'est exposée
+**Et** son statut et son historique restent immuables hors corrections administratives explicitement prévues par une future règle métier.
+
+**Étant donné** la liste des récupérations sélectionnables
+**Quand** elle est demandée avant la date limite
+**Alors** elle contient uniquement les occurrences `Prévue` rattachées à un mode actif et dont la limite n'est pas atteinte
+**Et** à l'instant exact de la limite ou après, l'occurrence est exclue sans tenir compte d'une capacité ou d'un nombre de commandes.
+
+**Étant donné** plusieurs occurrences
+**Quand** l'administrateur consulte leur planning
+**Alors** chaque `OccurrenceCard` affiche type, date, horaire, limite et statut, puis ouvre l'occurrence datée plutôt que son modèle
+**Et** les occurrences annulées et terminées restent consultables mais sont visuellement et sémantiquement non sélectionnables.
+
+**Étant donné** une occurrence modifiée concurremment
+**Quand** une mutation porte une `expectedVersion` obsolète
+**Alors** l'API refuse l'écriture sans écrasement, conserve les saisies locales et propose de recharger
+**Et** création, modification, génération et annulation produisent des événements d'audit immuables.
+
+**Étant donné** les écrans de planning sur mobile, tablette ou desktop
+**Quand** ils sont utilisés au clavier ou avec une technologie d'assistance
+**Alors** filtres, dates, statuts, dialogues, focus et cibles tactiles respectent le contrat UX
+**Et** aucun tableau desktop n'est compressé comme modèle obligatoire sur mobile.
+
+### Story 3.3 : Gérer les marchés récurrents
+
+En tant que maraîcher administrateur,
+je veux configurer mes marchés récurrents et générer leurs dates,
+afin de planifier les retraits au marché sans ressaisir chaque semaine.
+
+**Critères d'acceptation :**
+
+**Étant donné** un mode de récupération de type `Marché`
+**Quand** l'administrateur complète sa configuration
+**Alors** il renseigne un nom, un lieu, une adresse, un jour de semaine, une heure de début, une heure de fin, une règle de date limite et un état
+**Et** tous les horaires et règles récurrentes sont interprétés dans `Europe/Paris`.
+
+**Étant donné** une configuration de marché
+**Quand** elle est validée
+**Alors** le jour appartient à la liste contrôlée des jours de semaine, la fin est postérieure au début et la règle de limite produit un instant antérieur au début
+**Et** chaque erreur est reliée au champ concerné sans enregistrer de configuration partielle.
+
+**Étant donné** un marché actif et valide
+**Quand** l'administrateur demande un aperçu sur une période maximale de 90 jours
+**Alors** chaque date locale correspondante présente début, fin et limite calculés avant confirmation
+**Et** les changements d'heure sont calculés selon `Europe/Paris` sans dérive de l'heure locale choisie.
+
+**Étant donné** un aperçu confirmé
+**Quand** les occurrences du marché sont générées
+**Alors** chaque occurrence fige le nom, le lieu, l'adresse, les horaires et la limite applicables à cette date
+**Et** elle conserve la référence du marché source tout en devenant indépendante de ses modifications ultérieures.
+
+**Étant donné** des occurrences déjà générées
+**Quand** le nom, l'adresse, le jour ou les horaires du marché sont modifiés
+**Alors** aucune occurrence existante n'est réécrite
+**Et** seules les générations futures utilisent la nouvelle version du modèle.
+
+**Étant donné** une date pour laquelle une occurrence du même marché existe déjà
+**Quand** une nouvelle génération couvre cette date
+**Alors** l'occurrence existante est signalée et ignorée sans duplication
+**Et** une occurrence personnalisée n'est jamais remplacée par la valeur du modèle.
+
+**Étant donné** un marché actif
+**Quand** l'administrateur le désactive avec confirmation
+**Alors** aucune nouvelle occurrence ne peut être générée depuis ce modèle
+**Et** les occurrences déjà créées restent consultables et conservent leur propre statut.
+
+**Étant donné** un marché désactivé
+**Quand** il est réactivé
+**Alors** il peut de nouveau servir à prévisualiser et générer des occurrences futures
+**Et** aucune occurrence manquante n'est créée automatiquement.
+
+**Étant donné** une modification concurrente du marché
+**Quand** une mutation utilise une `expectedVersion` obsolète
+**Alors** l'API refuse l'écriture sans propagation ni écrasement
+**Et** l'écran conserve les saisies et propose de charger la version courante.
+
+**Étant donné** une création, modification, désactivation, réactivation ou génération
+**Quand** l'opération réussit
+**Alors** elle est idempotente lorsqu'elle peut être rejouée et produit un événement d'audit immuable
+**Et** aucune suppression physique du marché n'est exposée.
+
+**Étant donné** les écrans marché sur mobile
+**Quand** l'administrateur consulte le modèle et ses occurrences
+**Alors** le modèle récurrent et les `OccurrenceCard` datées sont présentés dans des zones distinctes
+**Et** l'interface n'ouvre jamais le modèle lorsqu'une action vise l'exécution d'une date précise.
+
+**Étant donné** les écrans de marché au clavier ou avec un lecteur d'écran
+**Quand** les horaires, jours et dialogues sont manipulés
+**Alors** labels, états, erreurs, focus et cibles tactiles respectent le contrat UX
+**Et** les valeurs de date et d'heure sont annoncées sans ambiguïté.
+
+### Story 3.4 : Gérer les tournées et leurs passages ordonnés
+
+En tant que maraîcher administrateur,
+je veux configurer mes tournées et ordonner leurs points de passage,
+afin de planifier des livraisons selon l'ordre que je décide manuellement.
+
+**Critères d'acceptation :**
+
+**Étant donné** un mode de récupération de type `Tournée`
+**Quand** l'administrateur complète sa configuration
+**Alors** il renseigne un nom, un jour de semaine, une règle de date limite, un état et au moins un point de passage
+**Et** chaque point contient un village ou libellé, une adresse ou indication facultative et un horaire approximatif facultatif.
+
+**Étant donné** plusieurs points de passage
+**Quand** la tournée est enregistrée
+**Alors** chaque point possède une position unique et l'ordre est conservé exactement comme décidé par l'administrateur
+**Et** aucun algorithme d'optimisation, de distance ou de temps ne réordonne automatiquement la tournée.
+
+**Étant donné** un point qui n'est pas le premier
+**Quand** l'administrateur active `Monter`
+**Alors** il échange sa position avec le point précédent et le nouvel ordre est annoncé
+**Et** l'opération équivalente `Descendre` fonctionne pour tout point qui n'est pas le dernier.
+
+**Étant donné** une interface proposant aussi le glisser-déposer
+**Quand** celui-ci est indisponible ou inutilisable
+**Alors** toutes les opérations de réorganisation restent réalisables avec `Monter` et `Descendre`, au clavier comme au tactile
+**Et** la position initiale et le résultat sont annoncés aux technologies d'assistance.
+
+**Étant donné** l'ajout, la modification ou le retrait d'un point
+**Quand** la mutation est confirmée
+**Alors** l'ordre restant est renuméroté sans doublon ni intervalle incohérent dans une transaction unique
+**Et** retirer un point du modèle ne modifie aucune occurrence déjà générée.
+
+**Étant donné** une tournée active et valide
+**Quand** l'administrateur prévisualise puis confirme une génération jusqu'à 90 jours
+**Alors** chaque occurrence fige le nom, l'ordre, les libellés et horaires approximatifs des passages ainsi que ses propres horaires et limite
+**Et** elle conserve la référence du modèle tout en devenant indépendante.
+
+**Étant donné** une tournée ou ses passages modifiés après génération
+**Quand** une occurrence existante est consultée
+**Alors** elle conserve l'ordre et les valeurs figés lors de sa création
+**Et** seules les occurrences générées ultérieurement utilisent la nouvelle configuration.
+
+**Étant donné** une date déjà couverte par une occurrence de la tournée
+**Quand** la génération est rejouée
+**Alors** aucun doublon n'est créé et l'occurrence existante n'est pas remplacée
+**Et** le résultat distingue les dates créées, ignorées ou en conflit.
+
+**Étant donné** une tournée active
+**Quand** l'administrateur la désactive
+**Alors** elle ne peut plus générer de nouvelles occurrences
+**Et** ses occurrences existantes et leur ordre de passage restent consultables.
+
+**Étant donné** une modification concurrente de l'ordre ou du modèle
+**Quand** la mutation porte une `expectedVersion` obsolète
+**Alors** l'API refuse l'ensemble de l'écriture sans ordre partiellement appliqué
+**Et** l'écran recharge la version courante tout en présentant clairement le conflit.
+
+**Étant donné** une mutation rejouée après une réponse réseau incertaine
+**Quand** le même identifiant d'idempotence est soumis
+**Alors** le résultat initial est retourné sans appliquer un second déplacement ou créer une seconde occurrence
+**Et** chaque création, modification, réorganisation, désactivation et génération est auditée.
+
+**Étant donné** qu'aucune commande n'existe encore dans cet epic
+**Quand** une occurrence de tournée est créée
+**Alors** elle expose un identifiant stable permettant à l'Epic 4 de rattacher les futures commandes de livraison
+**Et** aucun faux rattachement ou modèle de commande anticipé n'est créé par cette story.
+
+**Étant donné** l'éditeur de tournée sur mobile
+**Quand** les passages sont ajoutés ou réordonnés
+**Alors** les contrôles ont des cibles de `44–48 px`, les horaires et positions restent lisibles et l'action principale ne masque aucun point
+**Et** tablette et desktop peuvent enrichir la vue sans introduire une interaction obligatoire différente.
+
+**Étant donné** un utilisateur non administrateur ou une tournée inactive
+**Quand** une opération non autorisée est demandée
+**Alors** l'API refuse sans effectuer d'écriture ni divulguer de données administratives
+**Et** l'interface explique l'état et ne propose que les actions encore autorisées.
