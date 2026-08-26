@@ -2,9 +2,15 @@
   "name": "@project/screens",
   "version": "0.0.0",
   "private": true,
-  "exports": "./src/index.ts",
+  "exports": "./src/index.tsx",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@project/ui": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "19.1.0"
   }
 }

@@ -1,4 +1,11 @@
 {
   "extends": "../config/tsconfig.package.json",
-  "include": ["src/**/*.ts"]
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

@@ -1,4 +1,9 @@
 {
   "extends": "../../packages/config/tsconfig.app.json",
-  "include": ["app/**/*.ts"]
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["adonisrc.ts", "app/**/*.ts", "bin/**/*.ts", "config/**/*.ts", "start/**/*.ts"]
 }

@@ -29,7 +29,7 @@ export async function graph() {
       if (specifier && ts.isStringLiteral(specifier)) {
         const target = specifier.text;
         const match = target.match(/^@project\/([a-z-]+)(?:\/(.+))?$/);
-        const resolved = target.startsWith('.') ? ts.resolveModuleName(target, resolve(ROOT, from), { moduleResolution: ts.ModuleResolutionKind.NodeNext }).resolvedModule?.resolvedFileName : null;
+        const resolved = target.startsWith('.') ? ts.resolveModuleName(target, resolve(ROOT, from), { moduleResolution: ts.ModuleResolutionKind.NodeNext }, ts.sys).resolvedModule?.resolvedFileName : null;
         edges.push({ from, target, fromOwner: owner(from), targetOwner: match?.[1] ?? (resolved ? owner(relative(ROOT, resolved)) : null), deep: Boolean(match?.[2]), crossRelative: Boolean(resolved && owner(relative(ROOT, resolved)) && owner(relative(ROOT, resolved)) !== owner(from)) });
       }
       ts.forEachChild(child, visit);
