@@ -45,6 +45,13 @@ export const config = createTamagui({
       weight: { 4: '400', 7: '700' },
       letterSpacing: { 1: 0, 2: 0, 3: 0, 4: 0 },
     },
+    heading: {
+      family: 'system-ui',
+      size: { 1: 14, 2: 16, 3: 22, 4: 28 },
+      lineHeight: { 1: 20, 2: 24, 3: 28, 4: 34 },
+      weight: { 4: '400', 7: '700' },
+      letterSpacing: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    },
   },
   themes: { light: { background: UI_TOKENS.color.surfaceBase, color: UI_TOKENS.color.inkPrimary, borderColor: UI_TOKENS.color.borderSubtle } },
   media: { wide: { minWidth: 768 } },

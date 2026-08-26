@@ -42,7 +42,7 @@ const ScreenHeaderFrame = styled(XStack, {
 });
 
 export const ScreenTitle = styled(H1, {
-  fontFamily: 'system-ui',
+  fontFamily: '$heading',
   fontSize: '$display',
   lineHeight: 34,
   fontWeight: '700',
@@ -50,7 +50,7 @@ export const ScreenTitle = styled(H1, {
 });
 
 export const ScreenContext = styled(Paragraph, {
-  fontFamily: 'system-ui',
+  fontFamily: '$body',
   fontSize: '$meta',
   lineHeight: 20,
   fontWeight: '400',
