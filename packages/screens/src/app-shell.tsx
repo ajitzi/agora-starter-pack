@@ -5,8 +5,27 @@ import { Button, ButtonLink, Paragraph, Screen, ScreenHeader, SkipLink, UiProvid
 
 export function AppShell() {
   const [hydrated, setHydrated] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    setHydrated(true);
+    fetch('/v1/auth/session', { credentials: 'include' })
+      .then(async (response) => response.ok ? response.json() as Promise<{ email: string }> : null)
+      .then((session) => setEmail(session?.email ?? null))
+      .catch(() => setEmail(null));
+  }, []);
+
+  async function logout() {
+    try {
+      const csrf = await fetch('/v1/auth/csrf', { credentials: 'include' });
+      if (!csrf.ok) return;
+      const { csrfToken }: { csrfToken: string } = await csrf.json();
+      const response = await fetch('/v1/auth/logout', { method: 'POST', credentials: 'include', headers: { 'x-csrf-token': csrfToken } });
+      if (response.ok) setEmail(null);
+    } catch {
+      // A failed logout leaves the current session state unchanged.
+    }
+  }
 
   if (!hydrated) {
     return <UiProvider><Screen id="main-content" role="main" aria-busy><Paragraph>Chargement...</Paragraph></Screen></UiProvider>;
@@ -20,10 +39,12 @@ export function AppShell() {
           id="shell-title"
           title="Bienvenue"
           context="La Cabane du Merle"
-          actions={<Button asChild><ButtonLink href="/connexion">Se connecter</ButtonLink></Button>}
+          actions={email
+            ? <Button onPress={logout}>Se déconnecter</Button>
+            : <Button asChild><ButtonLink href="/connexion">Se connecter</ButtonLink></Button>}
         />
         <YStack gap="$md" minWidth={0}>
-          <Paragraph>Le service est en cours de préparation.</Paragraph>
+          <Paragraph>{email ? `Bonjour ${email}` : 'Le service est en cours de préparation.'}</Paragraph>
         </YStack>
       </Screen>
     </UiProvider>

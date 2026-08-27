@@ -26,17 +26,26 @@ export async function waitForGenericFailure() {
   await new Promise((resolve) => setTimeout(resolve, GENERIC_DELAY_MS));
 }
 
-export async function consumeAttempt(email: string, ip: string) {
+export async function isRateLimited(email: string, ip: string) {
   const since = new Date(Date.now() - WINDOW_MINUTES * 60_000);
-  return db.transaction(async (transaction) => {
+  const [byEmail, byIp] = await Promise.all([
+    db.from('login_attempts').where('email', email).where('attempted_at', '>=', since).count('* as total').first(),
+    db.from('login_attempts').where('ip', ip).where('attempted_at', '>=', since).count('* as total').first(),
+  ]);
+  return Number(byEmail?.total ?? 0) >= MAX_ATTEMPTS || Number(byIp?.total ?? 0) >= MAX_ATTEMPTS;
+}
+
+export async function recordAttempt(email: string, ip: string) {
+  if (!email) return;
+  const since = new Date(Date.now() - WINDOW_MINUTES * 60_000);
+  await db.transaction(async (transaction) => {
     for (const key of [email, ip].sort()) await transaction.rawQuery('select pg_advisory_xact_lock(hashtext(?))', [key]);
     const [byEmail, byIp] = await Promise.all([
       transaction.from('login_attempts').where('email', email).where('attempted_at', '>=', since).count('* as total').first(),
       transaction.from('login_attempts').where('ip', ip).where('attempted_at', '>=', since).count('* as total').first(),
     ]);
-    if (Number(byEmail?.total ?? 0) >= MAX_ATTEMPTS || Number(byIp?.total ?? 0) >= MAX_ATTEMPTS) return false;
+    if (Number(byEmail?.total ?? 0) >= MAX_ATTEMPTS || Number(byIp?.total ?? 0) >= MAX_ATTEMPTS) return;
     await transaction.table('login_attempts').insert({ id: randomUUID(), email, ip, attempted_at: new Date() });
-    return true;
   });
 }
 
@@ -45,10 +54,9 @@ export async function auditLogin(accountId: string | null, action: 'login_succee
 }
 
 export async function authenticate(email: string, password: string, ip: string) {
-  const permitted = email && password ? await consumeAttempt(email, ip) : false;
   return authenticateWith({ email, password, ip }, {
-    isRateLimited: async () => !permitted,
-    recordAttempt: async () => undefined,
+    isRateLimited: async () => !email || !password || await isRateLimited(email, ip),
+    recordAttempt: async () => recordAttempt(email, ip),
     audit: auditLogin,
     delay: waitForGenericFailure,
     verifyCredentials: async (identifier: string) => {

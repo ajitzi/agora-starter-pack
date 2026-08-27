@@ -45,6 +45,7 @@ test('centralise les invariants d authentification sans identifiant par defaut',
   assert.match(auth, /login_refused/);
   assert.match(controller, /sameCsrfToken/);
   assert.match(controller, /auth\.use\('web'\)\.logout/);
+  assert.match(controller, /email: account\.email/);
   assert.match(createFirstAdmin, /static options = \{ startApp: true \}/);
   assert.doesNotMatch(auth + migration + controller, /example\.com|password\s*=\s*['"]/i);
 });
@@ -225,7 +226,9 @@ test('le web génère et charge les styles Tamagui avant le build Next', async (
   assert.match(layout, /import '\.\/tamagui\.generated\.css';/);
   assert.match(css, /--c-action-primary:#285B35/);
   assert.match(css, /\.t_light/);
-  assert.match(shell, /<Button asChild><ButtonLink href="\/connexion">Se connecter<\/ButtonLink><\/Button>/);
+  assert.match(shell, /fetch\('\/v1\/auth\/session'/);
+  assert.match(shell, /fetch\('\/v1\/auth\/logout'/);
+  assert.match(shell, /Bonjour \$\{email\}/);
   assert.match(nextConfig, /'react-native': 'react-native-web'/);
   assert.match(nextConfig, /allowedDevOrigins/);
   assert.match(nextConfig, /source: '\/v1\/:path\*'/);

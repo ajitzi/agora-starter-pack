@@ -56,7 +56,7 @@ export async function currentSession(context: HttpContext) {
     if (!principal || !guard.isAuthenticated || !await hasActiveAccount(principal.id)) throw new Error('unauthenticated');
     const account = await Account.find(principal.id);
     if (!account?.active) throw new Error('inactive');
-    return response.ok({ role: account.role, destination: destinationFor(account.role) });
+    return response.ok({ email: account.email, role: account.role, destination: destinationFor(account.role) });
   } catch {
     return sendProblem(context, 401, 'Accès refusé', 'La session est absente, expirée ou refusée.');
   }
