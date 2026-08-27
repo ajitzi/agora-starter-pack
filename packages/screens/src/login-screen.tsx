@@ -54,12 +54,11 @@ export function LoginScreen() {
       <Screen id="main-content" role="main" aria-labelledby="login-title">
         <ScreenHeader id="login-title" title="Connexion" context="La Cabane du Merle" />
         <YStack maxWidth={480} width="100%" gap="$md">
-          <YStack ref={summary} tabIndex={-1} role={error ? 'alert' : 'status'} aria-live="polite">
+          <YStack ref={summary} id="login-error-summary" tabIndex={-1} role={error ? 'alert' : 'status'} aria-live="polite">
             {error ? <Paragraph>{error}</Paragraph> : state === 'success' ? <Paragraph>Connexion réussie.</Paragraph> : null}
           </YStack>
           <Form onSubmit={submit} aria-describedby={error ? 'login-error-summary' : undefined}>
               <YStack gap="$md">
-                <YStack id="login-error-summary" display={error ? 'flex' : 'none'}><Paragraph>{error}</Paragraph></YStack>
                 <FieldLabel htmlFor="login-email">Email</FieldLabel>
                 <TextInput id="login-email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={email} onChangeText={setEmail} />
                 <FieldLabel htmlFor="login-password">Mot de passe</FieldLabel>

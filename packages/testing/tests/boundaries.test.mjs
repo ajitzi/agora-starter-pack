@@ -33,6 +33,7 @@ test('centralise les invariants d authentification sans identifiant par defaut',
   const auth = await readFile('apps/api/app/auth.ts', 'utf8');
   const policy = await readFile('apps/api/app/auth_policy.mjs', 'utf8');
   const controller = await readFile('apps/api/app/auth_controller.ts', 'utf8');
+  const createFirstAdmin = await readFile('apps/api/commands/create_first_admin.ts', 'utf8');
   assert.match(migration, /createTable\('accounts'/);
   assert.match(migration, /createTable\('login_attempts'/);
   assert.match(migration, /createTable\('sessions'/);
@@ -44,6 +45,7 @@ test('centralise les invariants d authentification sans identifiant par defaut',
   assert.match(auth, /login_refused/);
   assert.match(controller, /sameCsrfToken/);
   assert.match(controller, /auth\.use\('web'\)\.logout/);
+  assert.match(createFirstAdmin, /static options = \{ startApp: true \}/);
   assert.doesNotMatch(auth + migration + controller, /example\.com|password\s*=\s*['"]/i);
 });
 

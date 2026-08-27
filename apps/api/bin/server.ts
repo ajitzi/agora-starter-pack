@@ -9,6 +9,7 @@ new Ignitor(appRoot, { importer })
   .tap((app) => {
     app.booting(async () => {
       await import('#start/env');
+      await import('@adonisjs/lucid/services/db');
     });
     app.listen('SIGTERM', () => app.terminate());
   })

@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import router from '@adonisjs/core/services/router';
+import server from '@adonisjs/core/services/server';
 import { createApiResponse, problem } from './http.js';
 import { csrf, currentSession, login, logout } from './auth_controller.js';
 
@@ -19,7 +20,11 @@ export async function notFound({ request, response }: HttpContext) {
 }
 
 router.get('/v1/health', health);
-router.use([() => import('@adonisjs/session/session_middleware'), () => import('@adonisjs/auth/initialize_auth_middleware')]);
+server.use([() => import('@adonisjs/core/bodyparser_middleware')]);
+router.use([
+  () => import('@adonisjs/session/session_middleware'),
+  () => import('@adonisjs/auth/initialize_auth_middleware'),
+]);
 router.get('/v1/auth/csrf', csrf);
 router.get('/v1/auth/session', currentSession);
 router.post('/v1/auth/login', login);

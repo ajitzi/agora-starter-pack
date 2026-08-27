@@ -7,6 +7,7 @@ import { validateLoginInput } from '../app/validators/auth.js';
 export default class CreateFirstAdmin extends BaseCommand {
   static commandName = 'auth:create-first-admin';
   static description = 'Crée le premier administrateur à partir de saisies interactives.';
+  static options = { startApp: true };
 
   async run() {
     const email = await this.prompt.ask('Email de l’administrateur');
