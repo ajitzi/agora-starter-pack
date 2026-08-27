@@ -10,7 +10,6 @@ export { CollectionNoticeGateView } from './components/feedback/collection-notic
 export type { CollectionNoticeGate, RuntimeNotice } from './components/feedback/collection-notice-gate-view';
 export { resolveCollectionNoticeGate } from './components/feedback/notice.mjs';
 export { Button } from './components/button/button';
-export { ButtonLink } from './components/link/button-link';
 export { FieldLabel } from './components/form/field-label';
 export { Form } from './components/form/form';
 export { TextInput } from './components/form/text-input';

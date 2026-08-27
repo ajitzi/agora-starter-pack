@@ -252,7 +252,7 @@ test('les écrans partagés ne possèdent ni routeur ni couleur locale et conser
   assert.doesNotMatch(source, /<(?:a|button|div|form|input|label|main|p|span)\b/);
   assert.match(source, /<Screen id="main-content" role="main" aria-labelledby="shell-title">/);
   assert.match(source, /<ScreenHeader\s+id="shell-title"\s+title="Bienvenue"/);
-  assert.match(source, /<ButtonLink href="\/connexion">Se connecter<\/ButtonLink>/);
+  assert.match(source, /<Button onPress={goToLogin}>Se connecter<\/Button>/);
   assert.equal((source.match(/<Screen\b/g) ?? []).length, 3);
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, ButtonLink, Paragraph, Screen, ScreenHeader, SkipLink, UiProvider, YStack } from '@project/ui';
+import { Button, Paragraph, Screen, ScreenHeader, SkipLink, UiProvider, YStack } from '@project/ui';
 
 export function AppShell() {
   const [hydrated, setHydrated] = useState(false);
@@ -27,6 +27,10 @@ export function AppShell() {
     }
   }
 
+  function goToLogin() {
+    window.location.assign('/connexion');
+  }
+
   if (!hydrated) {
     return <UiProvider><Screen id="main-content" role="main" aria-busy><Paragraph>Chargement...</Paragraph></Screen></UiProvider>;
   }
@@ -41,7 +45,7 @@ export function AppShell() {
           context="La Cabane du Merle"
           actions={email
             ? <Button onPress={logout}>Se déconnecter</Button>
-            : <Button asChild><ButtonLink href="/connexion">Se connecter</ButtonLink></Button>}
+            : <Button onPress={goToLogin}>Se connecter</Button>}
         />
         <YStack gap="$md" minWidth={0}>
           <Paragraph>{email ? `Bonjour ${email}` : 'Le service est en cours de préparation.'}</Paragraph>
