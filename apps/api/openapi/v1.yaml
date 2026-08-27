@@ -8,6 +8,74 @@ info:
 servers:
   - url: /v1
 paths:
+  /auth/csrf:
+    get:
+      operationId: getCsrfToken
+      summary: Obtain the CSRF token for an authenticated cookie mutation.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: CSRF token issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Authenticate with an email address and password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Opaque session established.
+          headers:
+            Set-Cookie:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
+  /auth/session:
+    get:
+      operationId: getCurrentSession
+      summary: Revalidate the current session and active account.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Current authorized role and local destination.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: End the current authenticated session.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '204': { description: Session ended. }
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /health:
     get:
       operationId: getHealth
@@ -34,7 +102,32 @@ paths:
         '404':
           $ref: '#/components/responses/Problem'
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: lcm-session
   schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        password: { type: string, minLength: 1, maxLength: 1024 }
+    LoginResult:
+      type: object
+      additionalProperties: false
+      required: [role, destination]
+      properties:
+        role: { type: string, enum: [admin, amap] }
+        destination: { type: string, enum: [/administration, /amap] }
+    CsrfToken:
+      type: object
+      additionalProperties: false
+      required: [csrfToken]
+      properties:
+        csrfToken: { type: string, minLength: 1 }
     Health:
       type: object
       additionalProperties: false

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "noEmit": false,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "experimentalDecorators": true
   },
   "include": ["adonisrc.ts", "app/**/*.ts", "bin/**/*.ts", "config/**/*.ts", "start/**/*.ts"]
 }

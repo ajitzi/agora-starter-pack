@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { boundaryViolations } from '../../../tools/check-boundaries.mjs';
 import { findCycles } from '../../../tools/check-cycles.mjs';
 
@@ -23,10 +24,24 @@ test('refuse les cycles', () => {
   assert.deepEqual(findCycles({ screens: ['domains'], domains: ['screens'] }), ['screens -> domains -> screens']);
 });
 
-test('ne prevoit aucune table ni migration metier', async () => {
-  const { readdir } = await import('node:fs/promises');
-  const entries = await readdir('apps/api/app');
-  assert.deepEqual(entries.sort(), ['adapters', 'http.d.mts', 'http.ts', 'index.ts']);
+test('centralise les invariants d authentification sans identifiant par defaut', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const migration = await readFile('apps/api/database/migrations/20260827000000_create_authentication_tables.ts', 'utf8');
+  const auth = await readFile('apps/api/app/auth.ts', 'utf8');
+  const policy = await readFile('apps/api/app/auth_policy.mjs', 'utf8');
+  const controller = await readFile('apps/api/app/auth_controller.ts', 'utf8');
+  assert.match(migration, /createTable\('accounts'/);
+  assert.match(migration, /createTable\('login_attempts'/);
+  assert.match(migration, /createTable\('sessions'/);
+  assert.match(migration, /createTable\('security_audit_proofs'/);
+  assert.match(policy, /normalize\('NFKC'\)/);
+  assert.match(auth, /MAX_ATTEMPTS = 5/);
+  assert.match(auth, /GENERIC_DELAY_MS = 350/);
+  assert.match(auth, /login_succeeded/);
+  assert.match(auth, /login_refused/);
+  assert.match(controller, /sameCsrfToken/);
+  assert.match(controller, /auth\.use\('web'\)\.logout/);
+  assert.doesNotMatch(auth + migration + controller, /example\.com|password\s*=\s*['"]/i);
 });
 
 test('reproduit le workspace depuis son lockfile racine unique', async () => {
@@ -72,7 +87,7 @@ test('le listener Adonis expose la santé avec la corrélation fournie', async (
     cwd: 'apps/api',
     env: {
       ...process.env,
-      APP_KEY: '12345678901234567890123456789012',
+      APP_KEY: `${randomUUID()}${randomUUID()}`,
       HOST: '127.0.0.1',
       PORT: String(port),
       NODE_ENV: 'test',
@@ -101,6 +116,19 @@ test('le listener Adonis expose la santé avec la corrélation fournie', async (
     assert.match(response.headers.get('content-type') ?? '', /^application\/json/);
     assert.equal(response.headers.get('x-correlation-id'), 'test-correlation');
     assert.deepEqual(await response.json(), { status: 'ok' });
+
+    for (const [name, request] of [
+      ['csrf', fetch(`http://127.0.0.1:${port}/v1/auth/csrf`)],
+      ['logout', fetch(`http://127.0.0.1:${port}/v1/auth/logout`, { method: 'POST' })],
+    ]) {
+      const protectedResponse = await request;
+      const protectedBody = await protectedResponse.text();
+      assert.equal(protectedResponse.status, 401, `${name}: ${protectedBody}`);
+      assert.match(protectedResponse.headers.get('content-type') ?? '', /^application\/problem\+json/);
+      const body = JSON.parse(protectedBody);
+      assert.equal(body.status, 401);
+      assert.doesNotMatch(JSON.stringify(body), /cookie|token|password|hash/i);
+    }
   } finally {
     child.kill('SIGTERM');
     await new Promise((resolve) => child.once('exit', resolve));
@@ -163,7 +191,7 @@ test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () 
   ]) assert.ok(components.includes(value), value);
 });
 
-test('le shell ne possède ni routeur ni couleur locale et conserve sa structure accessible', async () => {
+test('les écrans partagés ne possèdent ni routeur ni couleur locale et conservent leur structure accessible', async () => {
   const { readFile } = await import('node:fs/promises');
   const source = await readFile('packages/screens/src/index.tsx', 'utf8');
   assert.match(source, /from '@project\/ui'/);
@@ -172,12 +200,13 @@ test('le shell ne possède ni routeur ni couleur locale et conserve sa structure
   assert.match(source, /<Screen asChild>/);
   assert.match(source, /<main id="main-content" aria-labelledby="shell-title">/);
   assert.match(source, /<ScreenHeader id="shell-title" title="Bienvenue"/);
-  assert.equal((source.match(/<Screen\b/g) ?? []).length, 1);
+  assert.equal((source.match(/<Screen\b/g) ?? []).length, 2);
 });
 
-test('l’API conserve Lucid épinglé sans initialiser de persistance métier', async () => {
+test('l’API conserve Lucid et Auth épinglés pour la persistance d identité', async () => {
   const { readFile } = await import('node:fs/promises');
   const manifest = await readFile('apps/api/package.json', 'utf8');
   assert.match(manifest, /@adonisjs\/lucid/);
   assert.match(manifest, /@adonisjs\/core/);
+  assert.match(manifest, /@adonisjs\/auth/);
 });

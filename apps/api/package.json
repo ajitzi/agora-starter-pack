@@ -10,8 +10,13 @@
     "build": "node ace.js build"
   },
   "dependencies": {
+    "@adonisjs/auth": "10.1.0",
     "@adonisjs/core": "7.5.0",
-    "@adonisjs/lucid": "22.4.2"
+    "@adonisjs/hash": "9.0.5",
+    "@adonisjs/lucid": "22.4.2",
+    "@adonisjs/session": "8.1.0",
+    "luxon": "3.7.2",
+    "pg": "8.23.0"
   },
   "config": {
     "openapiVersion": "3.1.2"
