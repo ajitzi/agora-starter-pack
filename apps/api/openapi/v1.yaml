@@ -46,6 +46,45 @@ paths:
           $ref: '#/components/responses/Problem'
         '500':
           $ref: '#/components/responses/Problem'
+  /auth/recovery:
+    post:
+      operationId: requestPasswordRecovery
+      summary: Request a password recovery email without disclosing account status.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordRecoveryRequest'
+      responses:
+        '202':
+          description: Generic recovery response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericRecoveryResult'
+        '500':
+          $ref: '#/components/responses/Problem'
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      summary: Consume a one-time password recovery token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '204': { description: Password replaced and existing sessions revoked. }
+        '400':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '500':
+          $ref: '#/components/responses/Problem'
   /auth/session:
     get:
       operationId: getCurrentSession
@@ -122,6 +161,26 @@ components:
       properties:
         role: { type: string, enum: [admin, amap] }
         destination: { type: string, enum: [/administration, /amap] }
+    PasswordRecoveryRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+    GenericRecoveryResult:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 160 }
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password, confirmation]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 256, writeOnly: true }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+        confirmation: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
     CsrfToken:
       type: object
       additionalProperties: false

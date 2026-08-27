@@ -123,6 +123,18 @@ test('le listener Adonis expose la santé avec la corrélation fournie', async (
     assert.equal(response.headers.get('x-correlation-id'), 'test-correlation');
     assert.deepEqual(await response.json(), { status: 'ok' });
 
+    for (const [name, body, status] of [
+      ['reset-invalid-link', { token: 'not-a-token', password: 'une phrase de passe fiable', confirmation: 'une phrase de passe fiable' }, 400],
+      ['reset-invalid-password', { token: 'not-a-token', password: 'court', confirmation: 'court' }, 422],
+    ]) {
+      const resetResponse = await fetch(`http://127.0.0.1:${port}/v1/auth/reset-password`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const resetBody = await resetResponse.json();
+      assert.equal(resetResponse.status, status, name);
+      assert.match(resetResponse.headers.get('content-type') ?? '', /^application\/problem\+json/);
+      assert.equal(resetBody.status, status);
+      assert.doesNotMatch(JSON.stringify(resetBody), /token|password|hash|cookie/i);
+    }
+
     for (const [name, request] of [
       ['csrf', fetch(`http://127.0.0.1:${port}/v1/auth/csrf`)],
       ['logout', fetch(`http://127.0.0.1:${port}/v1/auth/logout`, { method: 'POST' })],

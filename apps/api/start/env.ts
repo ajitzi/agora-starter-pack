@@ -6,5 +6,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   HOST: Env.schema.string({ format: 'host' }),
   APP_KEY: Env.schema.string(),
   DATABASE_URL: Env.schema.string.optional(),
+  RESEND_API_KEY: Env.schema.string.optional(),
+  EMAIL_FROM: Env.schema.string.optional(),
+  WEB_BASE_URL: Env.schema.string.optional(),
+  FARM_NAME: Env.schema.string.optional(),
   LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
 });

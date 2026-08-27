@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import router from '@adonisjs/core/services/router';
 import server from '@adonisjs/core/services/server';
 import { createApiResponse, problem } from './http.js';
-import { csrf, currentSession, login, logout } from './auth_controller.js';
+import { csrf, currentSession, login, logout, requestRecovery, resetPasswordWithToken } from './auth_controller.js';
 
 export { createApiResponse, problem };
 
@@ -28,5 +28,7 @@ router.use([
 router.get('/v1/auth/csrf', csrf);
 router.get('/v1/auth/session', currentSession);
 router.post('/v1/auth/login', login);
+router.post('/v1/auth/recovery', requestRecovery);
+router.post('/v1/auth/reset-password', resetPasswordWithToken);
 router.post('/v1/auth/logout', logout);
 router.any('*', notFound);

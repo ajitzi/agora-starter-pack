@@ -3,6 +3,7 @@ import { authenticate, csrfToken, hasActiveAccount, normalizeEmail, sameCsrfToke
 import Account from './models/account.js';
 import { problem } from './http.js';
 import { validateLoginInput } from './validators/auth.js';
+import { requestPasswordRecovery, resetPassword, validateNewPassword, validateRecoveryRequest } from './password_recovery.js';
 
 type AuthContext = HttpContext & {
   auth: { use(name: 'web'): { authenticate(): Promise<{ id: string } | undefined>; isAuthenticated: boolean; login(account: { id: string }): Promise<void>; logout(): Promise<void> } };
@@ -28,6 +29,24 @@ export async function login(context: HttpContext) {
   await auth.use('web').login(result.account);
   session.put('csrf', csrfToken());
   return response.ok({ role: result.account.role, destination: destinationFor(result.account.role) });
+}
+
+export async function requestRecovery(context: HttpContext) {
+  const startedAt = Date.now();
+  const { request, response } = context;
+  const input = validateRecoveryRequest(request.body());
+  await requestPasswordRecovery(input?.email ?? '', request.ip(), startedAt);
+  return response.status(202).send({ message: 'Si un compte correspond à cette adresse, un email a été envoyé.' });
+}
+
+export async function resetPasswordWithToken(context: HttpContext) {
+  const { request, response } = context;
+  const input = validateNewPassword(request.body());
+  if (!input.valid) return sendProblem(context, 422, 'Phrase de passe invalide', input.detail);
+  if (!await resetPassword(input.token, input.password)) {
+    return sendProblem(context, 400, 'Lien non utilisable', 'Ce lien n’est plus valide. Demandez un nouveau lien.');
+  }
+  return response.status(204).send('');
 }
 
 export async function csrf(context: HttpContext) {

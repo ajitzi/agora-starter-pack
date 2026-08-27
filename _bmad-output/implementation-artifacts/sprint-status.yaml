@@ -22,7 +22,7 @@ development_status:
   1-2-livrer-le-shell-le-contrat-api-et-la-gate-de-notice: review
   1-3-automatiser-la-ci-et-produire-les-artefacts: review
   1-4-se-connecter-avec-email-et-mot-de-passe: review
-  1-5-réinitialiser-son-mot-de-passe-par-email: backlog
+  1-5-réinitialiser-son-mot-de-passe-par-email: review
   1-6-administrer-les-comptes-et-les-sessions: backlog
   1-7-appliquer-les-rôles-et-le-cloisonnement-des-données: backlog
   1-8-auditer-et-consulter-les-actions-de-sécurité: backlog

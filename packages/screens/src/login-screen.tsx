@@ -16,7 +16,8 @@ export function LoginScreen() {
     if (state === 'invalidCredentials' || state === 'error') summary.current?.focus();
   }, [state]);
 
-  async function submit() {
+  async function submit(event?: { preventDefault?: () => void }) {
+    event?.preventDefault?.();
     if (state === 'submitting') return;
     setState('submitting');
     try {
@@ -63,9 +64,10 @@ export function LoginScreen() {
                 <TextInput id="login-email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={email} onChangeText={setEmail} />
                 <FieldLabel htmlFor="login-password">Mot de passe</FieldLabel>
                 <TextInput id="login-password" name="password" type="password" autoComplete="current-password" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={password} onChangeText={setPassword} />
-                <Button type="submit" disabled={state === 'submitting'} aria-busy={state === 'submitting'}>
+                <Button type="button" onPress={() => void submit()} disabled={state === 'submitting'} aria-busy={state === 'submitting'}>
                   {state === 'submitting' ? 'Connexion en cours...' : 'Se connecter'}
                 </Button>
+                <Button type="button" onPress={() => window.location.assign('/connexion/recuperation')}>Mot de passe oublié ?</Button>
               </YStack>
           </Form>
         </YStack>

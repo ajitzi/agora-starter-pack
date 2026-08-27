@@ -26,6 +26,39 @@ export class AccountSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class EmailJobSchema extends BaseModel {
+  static $columns = ['accountId', 'attempts', 'availableAt', 'createdAt', 'failedAt', 'id', 'kind', 'lastError', 'lockExpiresAt', 'lockedAt', 'lockedBy', 'passwordResetTokenId', 'sentAt', 'state'] as const
+  $columns = EmailJobSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare attempts: number
+  @column.dateTime()
+  declare availableAt: DateTime
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare failedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare kind: string
+  @column()
+  declare lastError: string | null
+  @column.dateTime()
+  declare lockExpiresAt: DateTime | null
+  @column.dateTime()
+  declare lockedAt: DateTime | null
+  @column()
+  declare lockedBy: string | null
+  @column()
+  declare passwordResetTokenId: string
+  @column.dateTime()
+  declare sentAt: DateTime | null
+  @column()
+  declare state: string
+}
+
 export class LoginAttemptSchema extends BaseModel {
   static $columns = ['attemptedAt', 'email', 'id', 'ip'] as const
   $columns = LoginAttemptSchema.$columns
@@ -37,6 +70,36 @@ export class LoginAttemptSchema extends BaseModel {
   declare id: string
   @column()
   declare ip: string
+}
+
+export class PasswordRecoveryAttemptSchema extends BaseModel {
+  static $columns = ['attemptedAt', 'email', 'id', 'ip'] as const
+  $columns = PasswordRecoveryAttemptSchema.$columns
+  @column.dateTime()
+  declare attemptedAt: DateTime
+  @column()
+  declare email: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare ip: string
+}
+
+export class PasswordResetTokenSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'expiresAt', 'id', 'tokenDigest', 'usedAt'] as const
+  $columns = PasswordResetTokenSchema.$columns
+  @column()
+  declare accountId: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare tokenDigest: string
+  @column.dateTime()
+  declare usedAt: DateTime | null
 }
 
 export class SecurityAuditProofSchema extends BaseModel {
