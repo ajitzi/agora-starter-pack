@@ -199,7 +199,8 @@ test('les écrans partagés ne possèdent ni routeur ni couleur locale et conser
   assert.match(source, /<SkipLink \/>/);
   assert.match(source, /<Screen asChild>/);
   assert.match(source, /<main id="main-content" aria-labelledby="shell-title">/);
-  assert.match(source, /<ScreenHeader id="shell-title" title="Bienvenue"/);
+  assert.match(source, /<ScreenHeader\s+id="shell-title"\s+title="Bienvenue"/);
+  assert.match(source, /<a href="\/connexion">Se connecter<\/a>/);
   assert.equal((source.match(/<Screen\b/g) ?? []).length, 2);
 });
 

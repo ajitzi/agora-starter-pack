@@ -17,7 +17,12 @@ export function AppShell() {
       <SkipLink />
       <Screen asChild>
         <main id="main-content" aria-labelledby="shell-title">
-          <ScreenHeader id="shell-title" title="Bienvenue" context="La Cabane du Merle" />
+          <ScreenHeader
+            id="shell-title"
+            title="Bienvenue"
+            context="La Cabane du Merle"
+            actions={<Button asChild><a href="/connexion">Se connecter</a></Button>}
+          />
           <YStack gap="$md" minWidth={0}>
             <Paragraph>Le service est en cours de préparation.</Paragraph>
           </YStack>
