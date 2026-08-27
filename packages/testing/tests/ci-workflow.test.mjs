@@ -29,6 +29,7 @@ test('la CI protege les integrations et publie seulement les artefacts immuables
   assert.match(workflow, /publish-images:[\s\S]*?needs: \[quality-gates, docker-smoke-test\]/);
   assert.match(workflow, /packages: write/);
   assert.match(workflow, /ghcr\.io/);
+  assert.match(workflow, /docker\/setup-buildx-action@v3/);
   assert.match(workflow, /type=sha,format=long/);
   assert.match(workflow, /org\.opencontainers\.image\.revision=\$\{\{ github\.sha \}\}/);
   assert.match(workflow, /outputs\.digest/);
