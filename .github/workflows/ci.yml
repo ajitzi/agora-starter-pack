@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, preprod, main]
+  pull_request:
+    branches: [develop, preprod, main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gates:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.0.0
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Check boundaries
+        run: pnpm boundaries
+      - name: Check cycles
+        run: pnpm cycles
+      - name: Test and verify OpenAPI
+        run: pnpm test
+
+  docker-smoke-test:
+    name: Docker smoke test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/preprod' || github.ref == 'refs/heads/main')
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build web image
+        run: docker build --tag ci-smoke-web --file apps/web/Dockerfile .
+      - name: Smoke test web
+        run: |
+          docker run --detach --rm --name ci-smoke-web --publish 3000:3000 ci-smoke-web
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3000/
+      - name: Build API image
+        run: docker build --tag ci-smoke-api --file apps/api/Dockerfile .
+      - name: Smoke test API
+        run: |
+          docker run --detach --rm --name ci-smoke-api --publish 3333:3333 --env APP_KEY=ci-smoke-test-app-key --env HOST=0.0.0.0 --env PORT=3333 --env LOG_LEVEL=error ci-smoke-api
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 http://localhost:3333/v1/health
+
+  publish-images:
+    name: Publish OCI images
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/preprod' || github.ref == 'refs/heads/main')
+    needs: [quality-gates, docker-smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      web-digest: ${{ steps.web-build.outputs.digest }}
+      api-digest: ${{ steps.api-build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: web-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/web
+          tags: type=sha,format=long
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+      - id: web-build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          provenance: mode=max
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+      - id: api-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/api
+          tags: type=sha,format=long
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+      - id: api-build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          provenance: mode=max
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+      - name: Report immutable image references
+        run: |
+          echo "Web: ghcr.io/${{ github.repository }}/web@${{ steps.web-build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "API: ghcr.io/${{ github.repository }}/api@${{ steps.api-build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"

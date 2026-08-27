@@ -1,0 +1,16 @@
+.git
+.github
+_bmad-output
+node_modules
+**/node_modules
+.next
+**/.next
+.adonisjs
+**/.adonisjs
+build
+**/build
+coverage
+.env
+.env.*
+!.env.example
+*.tsbuildinfo

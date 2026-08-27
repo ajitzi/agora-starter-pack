@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import router from '@adonisjs/core/services/router';
-import { createApiResponse, problem } from './http.mjs';
+import { createApiResponse, problem } from './http.js';
 
 export { createApiResponse, problem };
 

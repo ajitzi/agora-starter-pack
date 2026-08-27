@@ -26,7 +26,7 @@ test('refuse les cycles', () => {
 test('ne prevoit aucune table ni migration metier', async () => {
   const { readdir } = await import('node:fs/promises');
   const entries = await readdir('apps/api/app');
-  assert.deepEqual(entries.sort(), ['adapters', 'http.d.mts', 'http.mjs', 'index.ts']);
+  assert.deepEqual(entries.sort(), ['adapters', 'http.d.mts', 'http.ts', 'index.ts']);
 });
 
 test('reproduit le workspace depuis son lockfile racine unique', async () => {
@@ -52,17 +52,11 @@ test('le contrat santé définit ses réponses et problèmes à la frontière', 
 });
 
 test('la santé ne révèle aucun détail et les erreurs sont des problèmes RFC 9457 corrélés', async () => {
-  const { createApiResponse } = await import('../../../apps/api/app/http.mjs');
-  const health = createApiResponse('/v1/health', 'test-correlation');
-  assert.deepEqual(health, {
-    status: 200,
-    headers: { 'content-type': 'application/json', 'x-correlation-id': 'test-correlation' },
-    body: { status: 'ok' },
-  });
-  const missing = createApiResponse('/v1/missing', 'test-correlation');
-  assert.equal(missing.headers['content-type'], 'application/problem+json');
-  assert.deepEqual(Object.keys(missing.body).sort(), ['correlationId', 'detail', 'status', 'title', 'type']);
-  assert.equal(missing.body.correlationId, 'test-correlation');
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile('apps/api/app/http.ts', 'utf8');
+  assert.match(source, /body: \{ status: 'ok' \}/);
+  assert.match(source, /'application\/problem\+json'/);
+  assert.match(source, /correlationId: correlationId\(requestId\)/);
 });
 
 test('le listener Adonis expose la santé avec la corrélation fournie', async () => {

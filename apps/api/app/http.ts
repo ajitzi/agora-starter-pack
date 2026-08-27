@@ -1,9 +1,9 @@
-function correlationId(value) {
+function correlationId(value: string | undefined) {
   if (value && /^[a-zA-Z0-9-]{1,128}$/.test(value)) return value;
   return crypto.randomUUID();
 }
 
-export function problem(status, title, detail, requestId) {
+export function problem(status: number, title: string, detail: string, requestId?: string) {
   return {
     type: `https://la-cabane-du-merle.invalid/problems/${status}`,
     title,
@@ -13,7 +13,7 @@ export function problem(status, title, detail, requestId) {
   };
 }
 
-export function createApiResponse(path, requestId) {
+export function createApiResponse(path: string, requestId?: string) {
   const id = correlationId(requestId);
   if (path === '/v1/health') {
     return {
