@@ -752,23 +752,38 @@ Le projet conserve ainsi un design system cohérent.
 
 # 22. Structure de `packages/ui`
 
-Chaque composant React ou composant cree avec `styled` reside dans son propre fichier kebab-case. Les composants lies restent au meme niveau lorsque le package est petit. Les barrels `index.ts` et `index.tsx` n'exposent que l'API publique par reexports: ils ne definissent ni composant ni style. Les consommateurs continuent a importer depuis `@project/ui` ou `@project/screens`, sans dependre de cette organisation interne.
+Chaque composant React ou composant cree avec `styled` reside dans son propre fichier kebab-case. Les composants sont regroupes par responsabilite. Les barrels `index.ts` et `index.tsx` n'exposent que l'API publique par reexports: ils ne definissent ni composant ni style. Les consommateurs continuent a importer depuis `@project/ui` ou `@project/screens`, sans dependre de cette organisation interne.
 
 ```text
 packages/ui/
 └── src/
     ├── config.ts
-    ├── notice.mjs
-    ├── ui-provider.tsx
-    ├── screen.tsx
-    ├── screen-header.tsx
-    ├── screen-header-frame.tsx
-    ├── screen-title.tsx
-    ├── screen-context.tsx
-    ├── sticky-action-bar.tsx
-    ├── focus-link.tsx
-    ├── skip-link.tsx
-    ├── collection-notice-gate-view.tsx
+    ├── provider/
+    │   └── ui-provider.tsx
+    ├── layout/
+    │   ├── screen/
+    │   │   ├── screen.tsx
+    │   │   ├── screen-header.tsx
+    │   │   ├── screen-header-frame.tsx
+    │   │   ├── screen-title.tsx
+    │   │   ├── screen-context.tsx
+    │   │   └── sticky-action-bar.tsx
+    │   └── stack/
+    │       ├── x-stack.tsx
+    │       └── y-stack.tsx
+    ├── components/
+    │   ├── button/
+    │   │   └── button.tsx
+    │   ├── typography/
+    │   │   ├── paragraph.tsx
+    │   │   └── text.tsx
+    │   ├── accessibility/
+    │   │   ├── focus-link.tsx
+    │   │   └── skip-link.tsx
+    │   └── feedback/
+    │       ├── collection-notice-gate-view.tsx
+    │       ├── notice.mjs
+    │       └── notice.d.mts
     └── index.tsx
 ```
 

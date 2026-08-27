@@ -139,7 +139,7 @@ test('le listener Adonis expose la santé avec la corrélation fournie', async (
 });
 
 test('la gate de notice bloque indépendamment chaque exigence de production', async () => {
-  const { resolveCollectionNoticeGate } = await import('../../ui/src/notice.mjs');
+  const { resolveCollectionNoticeGate } = await import('../../ui/src/components/feedback/notice.mjs');
   assert.equal(resolveCollectionNoticeGate('production', undefined).canSubmit, false);
   const notice = {
     active: true,
@@ -170,11 +170,11 @@ test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () 
   const { readFile } = await import('node:fs/promises');
   const source = await readFile('packages/ui/src/config.ts', 'utf8');
   const components = await Promise.all([
-    'screen.tsx',
-    'screen-header-frame.tsx',
-    'sticky-action-bar.tsx',
-    'focus-link.tsx',
-    'collection-notice-gate-view.tsx',
+    'layout/screen/screen.tsx',
+    'layout/screen/screen-header-frame.tsx',
+    'layout/screen/sticky-action-bar.tsx',
+    'components/accessibility/focus-link.tsx',
+    'components/feedback/collection-notice-gate-view.tsx',
   ].map((file) => readFile(`packages/ui/src/${file}`, 'utf8')));
   const componentSource = components.join('\n');
   for (const value of [
@@ -268,6 +268,33 @@ test('les barrels ne réexportent que l API publique et les composants sont isol
       assert.equal(components.length, 1, `${path} doit définir un unique composant React ou styled`);
     }
   }
+});
+
+test('le package UI est organise par responsabilite derriere son barrel public', async () => {
+  const { access, readFile } = await import('node:fs/promises');
+  const expectedFiles = [
+    'packages/ui/src/provider/ui-provider.tsx',
+    'packages/ui/src/layout/screen/screen.tsx',
+    'packages/ui/src/layout/screen/screen-context.tsx',
+    'packages/ui/src/layout/screen/screen-header-frame.tsx',
+    'packages/ui/src/layout/screen/screen-header.tsx',
+    'packages/ui/src/layout/screen/screen-title.tsx',
+    'packages/ui/src/layout/screen/sticky-action-bar.tsx',
+    'packages/ui/src/layout/stack/x-stack.tsx',
+    'packages/ui/src/layout/stack/y-stack.tsx',
+    'packages/ui/src/components/button/button.tsx',
+    'packages/ui/src/components/typography/paragraph.tsx',
+    'packages/ui/src/components/typography/text.tsx',
+    'packages/ui/src/components/accessibility/focus-link.tsx',
+    'packages/ui/src/components/accessibility/skip-link.tsx',
+    'packages/ui/src/components/feedback/collection-notice-gate-view.tsx',
+  ];
+  await Promise.all(expectedFiles.map((path) => access(path)));
+  const barrel = await readFile('packages/ui/src/index.tsx', 'utf8');
+  for (const name of ['Button', 'Paragraph', 'Text', 'XStack', 'YStack']) {
+    assert.match(barrel, new RegExp(`export \\{ ${name} \\} from './`));
+  }
+  assert.doesNotMatch(barrel, /from 'tamagui'/);
 });
 
 test('l’API conserve Lucid et Auth épinglés pour la persistance d identité', async () => {
