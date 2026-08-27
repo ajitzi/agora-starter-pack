@@ -7,7 +7,10 @@ import { boundaryViolations } from '../../../tools/check-boundaries.mjs';
 import { findCycles } from '../../../tools/check-cycles.mjs';
 
 test('autorise les imports par point d entree public dans le sens attendu', () => {
-  assert.deepEqual(boundaryViolations([{ from: 'packages/screens/src/index.ts', fromOwner: 'screens', target: '@project/domains', targetOwner: 'domains', deep: false, crossRelative: false }]), []);
+  assert.deepEqual(boundaryViolations([
+    { from: 'packages/screens/src/index.ts', fromOwner: 'screens', target: '@project/domains', targetOwner: 'domains', deep: false, crossRelative: false },
+    { from: 'packages/screens/src/index.tsx', fromOwner: 'screens', target: './app-shell', targetOwner: 'screens', deep: false, crossRelative: false },
+  ]), []);
 });
 
 test('refuse les imports profonds et les directions interdites', () => {
@@ -166,7 +169,14 @@ test('la gate de notice bloque indépendamment chaque exigence de production', a
 test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () => {
   const { readFile } = await import('node:fs/promises');
   const source = await readFile('packages/ui/src/config.ts', 'utf8');
-  const components = await readFile('packages/ui/src/index.tsx', 'utf8');
+  const components = await Promise.all([
+    'screen.tsx',
+    'screen-header-frame.tsx',
+    'sticky-action-bar.tsx',
+    'focus-link.tsx',
+    'collection-notice-gate-view.tsx',
+  ].map((file) => readFile(`packages/ui/src/${file}`, 'utf8')));
+  const componentSource = components.join('\n');
   for (const value of [
     '#F7F6F1', '#FFFFFF', '#ECEBE3', '#1D2A1F', '#536055', '#8A928B',
     '#D7D9D1', '#285B35', '#1D4728', '#216E39', '#8A5A00', '#A9362A', '#245D85',
@@ -174,12 +184,12 @@ test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () 
   for (const value of ['fontSize: 28', 'lineHeight: 34', 'fontSize: 22', 'letterSpacing: \'0.04em\'', 'xs: 4', 'xxxl: 48', 'sm: 8', 'md: 12', 'lg: 16', 'full: 9999']) {
     assert.match(source, new RegExp(value));
   }
-  assert.match(components, /backgroundColor: '\$surface-base'/);
-  assert.match(components, /backgroundColor: '\$surface-raised'/);
-  assert.match(components, /borderColor: '\$border-subtle'/);
-  assert.match(components, /outlineColor: '\$focus-ring'/);
-  assert.doesNotMatch(components, /overflow: 'scroll'/);
-  assert.match(components, /flexWrap: 'wrap'/);
+  assert.match(componentSource, /backgroundColor: '\$surface-base'/);
+  assert.match(componentSource, /backgroundColor: '\$surface-raised'/);
+  assert.match(componentSource, /borderColor: '\$border-subtle'/);
+  assert.match(componentSource, /outlineColor: '\$focus-ring'/);
+  assert.doesNotMatch(componentSource, /overflow: 'scroll'/);
+  assert.match(componentSource, /flexWrap: 'wrap'/);
   for (const value of [
     'Responsable: {gate.notice.controller}',
     'Finalité: {gate.notice.purpose}',
@@ -188,12 +198,15 @@ test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () 
     'Droits: {gate.notice.rights}',
     'Contact: {gate.notice.contact}',
     'Version {gate.proofVersion}',
-  ]) assert.ok(components.includes(value), value);
+  ]) assert.ok(componentSource.includes(value), value);
 });
 
 test('les écrans partagés ne possèdent ni routeur ni couleur locale et conservent leur structure accessible', async () => {
   const { readFile } = await import('node:fs/promises');
-  const source = await readFile('packages/screens/src/index.tsx', 'utf8');
+  const source = await Promise.all([
+    'app-shell.tsx',
+    'login-screen.tsx',
+  ].map((file) => readFile(`packages/screens/src/${file}`, 'utf8'))).then((sources) => sources.join('\n'));
   assert.match(source, /from '@project\/ui'/);
   assert.doesNotMatch(source, /(?:tamagui|next\/|react-router|expo-router|#[0-9A-Fa-f]{3,8})/);
   assert.match(source, /<SkipLink \/>/);
@@ -202,6 +215,59 @@ test('les écrans partagés ne possèdent ni routeur ni couleur locale et conser
   assert.match(source, /<ScreenHeader\s+id="shell-title"\s+title="Bienvenue"/);
   assert.match(source, /<a href="\/connexion">Se connecter<\/a>/);
   assert.equal((source.match(/<Screen\b/g) ?? []).length, 2);
+});
+
+test('les barrels ne réexportent que l API publique et les composants sont isolés', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const ts = await import('typescript');
+  const sourceFiles = [];
+
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) await visit(path);
+      else if (/\.[cm]?[jt]sx?$/.test(entry.name)) sourceFiles.push(path);
+    }
+  }
+
+  function containsJsx(node) {
+    let found = false;
+    const visitNode = (child) => {
+      if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || ts.isJsxFragment(child)) found = true;
+      if (!found) ts.forEachChild(child, visitNode);
+    };
+    ts.forEachChild(node, visitNode);
+    return found;
+  }
+
+  function componentDeclarations(source, path) {
+    const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+    const components = [];
+    const visitNode = (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name && containsJsx(node)) components.push(node.name.text);
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isCallExpression(node.initializer) && ts.isIdentifier(node.initializer.expression) && node.initializer.expression.text === 'styled') {
+        components.push(node.name.text);
+      }
+      ts.forEachChild(node, visitNode);
+    };
+    ts.forEachChild(file, visitNode);
+    return { file, components };
+  }
+
+  await Promise.all([
+    visit('packages/ui/src'),
+    visit('packages/screens/src'),
+  ]);
+
+  for (const path of sourceFiles) {
+    const source = await readFile(path, 'utf8');
+    const { file, components } = componentDeclarations(source, path);
+    if (/\/index\.[cm]?[jt]sx?$/.test(path)) {
+      assert.ok(file.statements.every((statement) => ts.isExportDeclaration(statement)), `${path} doit seulement réexporter`);
+    } else if (path.endsWith('.tsx')) {
+      assert.equal(components.length, 1, `${path} doit définir un unique composant React ou styled`);
+    }
+  }
 });
 
 test('l’API conserve Lucid et Auth épinglés pour la persistance d identité', async () => {

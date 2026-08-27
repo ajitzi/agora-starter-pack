@@ -173,6 +173,7 @@ flowchart TD
 | Concern | Convention |
 | --- | --- |
 | Naming | Packages et dossiers en kebab-case; types, entites et composants en PascalCase; fonctions en camelCase; evenements au passe (`OrderAccepted`). |
+| UI et screens | Chaque composant React ou `styled` de `packages/ui` et `packages/screens` vit dans un fichier kebab-case dedie; les `index.ts` et `index.tsx` ne sont que des barrels de reexports publics et ne definissent aucun composant. |
 | Imports | Les consumers utilisent uniquement les points d'entree publics des packages (`@project/domains/orders`, `@project/ui`); pas d'import interne entre packages. |
 | State and mutations | Les mutations passent par un cas d'usage de domaine et le contrat OpenAPI; les composants et ecrans ne contiennent pas de regle metier fondamentale. |
 | Data history | Les identifiants et jetons de liens clients sont opaques; les dates sont serialisees en ISO 8601 aux frontieres; les valeurs historiques sont des snapshots metier. |

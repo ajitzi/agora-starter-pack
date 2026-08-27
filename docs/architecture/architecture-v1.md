@@ -752,34 +752,24 @@ Le projet conserve ainsi un design system cohérent.
 
 # 22. Structure de `packages/ui`
 
+Chaque composant React ou composant cree avec `styled` reside dans son propre fichier kebab-case. Les composants lies restent au meme niveau lorsque le package est petit. Les barrels `index.ts` et `index.tsx` n'exposent que l'API publique par reexports: ils ne definissent ni composant ni style. Les consommateurs continuent a importer depuis `@project/ui` ou `@project/screens`, sans dependre de cette organisation interne.
+
 ```text
 packages/ui/
-├── components/
-│   ├── button/
-│   ├── input/
-│   ├── select/
-│   ├── checkbox/
-│   ├── card/
-│   ├── badge/
-│   ├── dialog/
-│   ├── sheet/
-│   ├── tabs/
-│   └── feedback/
-│
-├── layout/
-│   ├── stack/
-│   ├── container/
-│   └── screen/
-│
-├── tokens/
-│   ├── spacing.ts
-│   ├── sizes.ts
-│   └── radius.ts
-│
-├── themes/
-├── icons/
-├── tamagui.config.ts
-└── index.ts
+└── src/
+    ├── config.ts
+    ├── notice.mjs
+    ├── ui-provider.tsx
+    ├── screen.tsx
+    ├── screen-header.tsx
+    ├── screen-header-frame.tsx
+    ├── screen-title.tsx
+    ├── screen-context.tsx
+    ├── sticky-action-bar.tsx
+    ├── focus-link.tsx
+    ├── skip-link.tsx
+    ├── collection-notice-gate-view.tsx
+    └── index.tsx
 ```
 
 ---
