@@ -4,15 +4,22 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "next build",
+    "build": "tamagui build --target web ./src ../../packages/ui/src ../../packages/screens/src -- next build",
+    "predev": "tamagui build --target web ./src ../../packages/ui/src ../../packages/screens/src",
     "dev": "next dev",
     "start": "next start"
   },
   "dependencies": {
+    "@tamagui/core": "2.7.7",
+    "@tamagui/web": "2.7.7",
     "@project/screens": "workspace:*",
     "@project/ui": "workspace:*",
     "next": "16.3.2",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "tamagui": "2.7.7"
+  },
+  "devDependencies": {
+    "@tamagui/cli": "2.7.7"
   }
 }

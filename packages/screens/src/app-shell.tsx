@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Paragraph, Screen, ScreenHeader, SkipLink, UiProvider, YStack } from '@project/ui';
+import { Button, ButtonLink, Paragraph, Screen, ScreenHeader, SkipLink, UiProvider, YStack } from '@project/ui';
 
 export function AppShell() {
   const [hydrated, setHydrated] = useState(false);
@@ -9,24 +9,22 @@ export function AppShell() {
   useEffect(() => setHydrated(true), []);
 
   if (!hydrated) {
-    return <main id="main-content" aria-busy="true"><p>Chargement...</p></main>;
+    return <UiProvider><Screen id="main-content" role="main" aria-busy><Paragraph>Chargement...</Paragraph></Screen></UiProvider>;
   }
 
   return (
     <UiProvider>
       <SkipLink />
-      <Screen asChild>
-        <main id="main-content" aria-labelledby="shell-title">
-          <ScreenHeader
-            id="shell-title"
-            title="Bienvenue"
-            context="La Cabane du Merle"
-            actions={<Button asChild><a href="/connexion">Se connecter</a></Button>}
-          />
-          <YStack gap="$md" minWidth={0}>
-            <Paragraph>Le service est en cours de préparation.</Paragraph>
-          </YStack>
-        </main>
+      <Screen id="main-content" role="main" aria-labelledby="shell-title">
+        <ScreenHeader
+          id="shell-title"
+          title="Bienvenue"
+          context="La Cabane du Merle"
+          actions={<Button asChild><ButtonLink href="/connexion">Se connecter</ButtonLink></Button>}
+        />
+        <YStack gap="$md" minWidth={0}>
+          <Paragraph>Le service est en cours de préparation.</Paragraph>
+        </YStack>
       </Screen>
     </UiProvider>
   );

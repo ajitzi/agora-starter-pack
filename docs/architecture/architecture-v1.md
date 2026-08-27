@@ -816,6 +816,8 @@ les primitives doivent être importées depuis :
 
 sauf exception explicitement justifiée.
 
+Les composants et les écrans partagés ne contiennent jamais de JSX HTML natif (`div`, `main`, `form`, `input`, `label`, `a`, etc.). Ils utilisent exclusivement les primitives et composants « HTML elements » de Tamagui exposés par `@project/ui`, avec des rôles et propriétés d’accessibilité portables. Cette règle préserve le rendu web et les cibles native futures; l’intégration HTML propre à Next.js reste dans `apps/web`.
+
 ---
 
 # 24. `packages/domains`

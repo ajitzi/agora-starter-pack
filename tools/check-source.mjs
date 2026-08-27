@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const IGNORED_DIRECTORIES = new Set(['.next', 'node_modules']);
+const IGNORED_DIRECTORIES = new Set(['.next', '.tamagui', 'node_modules']);
 
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

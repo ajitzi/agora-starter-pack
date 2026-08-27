@@ -61,7 +61,7 @@ Modular monolith with hexagonal domain boundaries. `apps` sont les shells de run
 
 - **Binds:** UI, screens, domains, web, mobile
 - **Prevents:** conventions visuelles et imports Tamagui divergents.
-- **Rule:** Seul `packages/ui` importe directement Tamagui et possede sa configuration, ses themes, son provider et son extraction CSS. Tout autre code UI importe les primitives, tokens et composants depuis `@project/ui`; `apps/web` ne porte que l'integration Next.js necessaire a ce package.
+- **Rule:** Seul `packages/ui` importe directement Tamagui et possede sa configuration, ses themes, son provider et son extraction CSS. Tout autre code UI importe les primitives, tokens et composants depuis `@project/ui`; `apps/web` ne porte que l'integration Next.js necessaire a ce package. Les composants et ecrans partages ne contiennent jamais de JSX HTML natif: ils composent exclusivement les primitives et composants HTML elements de Tamagui exposes par `@project/ui`, avec des roles et proprietes d'accessibilite portables web/native.
 
 ### AD-6 - Direction unique des dependances [ADOPTED]
 

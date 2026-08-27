@@ -3,6 +3,7 @@
 node_modules/
 .next/
 .adonisjs/
+.tamagui/
 build/
 coverage/
 .env

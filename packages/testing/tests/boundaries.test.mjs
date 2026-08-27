@@ -201,6 +201,40 @@ test('les tokens UX-DR1 à UX-DR17 centralisent les valeurs du shell', async () 
   ]) assert.ok(componentSource.includes(value), value);
 });
 
+test('le web génère et charge les styles Tamagui avant le build Next', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const [manifest, buildConfig, layout, css, nextConfig, shell, button, fieldLabel, textInput, login] = await Promise.all([
+    readFile('apps/web/package.json', 'utf8'),
+    readFile('apps/web/tamagui.build.ts', 'utf8'),
+    readFile('apps/web/src/app/layout.tsx', 'utf8'),
+    readFile('apps/web/src/app/tamagui.generated.css', 'utf8'),
+    readFile('apps/web/next.config.mjs', 'utf8'),
+    readFile('packages/screens/src/app-shell.tsx', 'utf8'),
+    readFile('packages/ui/src/components/button/button.tsx', 'utf8'),
+    readFile('packages/ui/src/components/form/field-label.tsx', 'utf8'),
+    readFile('packages/ui/src/components/form/text-input.tsx', 'utf8'),
+    readFile('packages/screens/src/login-screen.tsx', 'utf8'),
+  ]);
+  assert.match(manifest, /"build": "tamagui build --target web .* -- next build"/);
+  assert.match(manifest, /"predev": "tamagui build --target web/);
+  assert.match(buildConfig, /config: '\.\.\/\.\.\/packages\/ui\/src\/config\.ts'/);
+  assert.match(buildConfig, /components: \['tamagui', '@project\/ui', '@project\/screens'\]/);
+  assert.match(buildConfig, /outputCSS: '\.\/src\/app\/tamagui\.generated\.css'/);
+  assert.match(layout, /import '\.\/tamagui\.generated\.css';/);
+  assert.match(css, /--c-action-primary:#285B35/);
+  assert.match(css, /\.t_light/);
+  assert.match(shell, /<Button asChild><ButtonLink href="\/connexion">Se connecter<\/ButtonLink><\/Button>/);
+  assert.match(nextConfig, /'react-native': 'react-native-web'/);
+  assert.match(nextConfig, /allowedDevOrigins/);
+  assert.match(nextConfig, /source: '\/v1\/:path\*'/);
+  assert.match(button, /backgroundColor: '\$action-primary'/);
+  assert.match(button, /color: '\$action-on-primary'/);
+  assert.match(fieldLabel, /styled\(Label/);
+  assert.match(textInput, /styled\(Input/);
+  assert.match(login, /<FieldLabel htmlFor="login-email">Email<\/FieldLabel>/);
+  assert.match(login, /<TextInput id="login-email"/);
+});
+
 test('les écrans partagés ne possèdent ni routeur ni couleur locale et conservent leur structure accessible', async () => {
   const { readFile } = await import('node:fs/promises');
   const source = await Promise.all([
@@ -210,11 +244,11 @@ test('les écrans partagés ne possèdent ni routeur ni couleur locale et conser
   assert.match(source, /from '@project\/ui'/);
   assert.doesNotMatch(source, /(?:tamagui|next\/|react-router|expo-router|#[0-9A-Fa-f]{3,8})/);
   assert.match(source, /<SkipLink \/>/);
-  assert.match(source, /<Screen asChild>/);
-  assert.match(source, /<main id="main-content" aria-labelledby="shell-title">/);
+  assert.doesNotMatch(source, /<(?:a|button|div|form|input|label|main|p|span)\b/);
+  assert.match(source, /<Screen id="main-content" role="main" aria-labelledby="shell-title">/);
   assert.match(source, /<ScreenHeader\s+id="shell-title"\s+title="Bienvenue"/);
-  assert.match(source, /<a href="\/connexion">Se connecter<\/a>/);
-  assert.equal((source.match(/<Screen\b/g) ?? []).length, 2);
+  assert.match(source, /<ButtonLink href="\/connexion">Se connecter<\/ButtonLink>/);
+  assert.equal((source.match(/<Screen\b/g) ?? []).length, 3);
 });
 
 test('les barrels ne réexportent que l API publique et les composants sont isolés', async () => {
@@ -283,6 +317,8 @@ test('le package UI est organise par responsabilite derriere son barrel public',
     'packages/ui/src/layout/stack/x-stack.tsx',
     'packages/ui/src/layout/stack/y-stack.tsx',
     'packages/ui/src/components/button/button.tsx',
+    'packages/ui/src/components/form/field-label.tsx',
+    'packages/ui/src/components/form/text-input.tsx',
     'packages/ui/src/components/typography/paragraph.tsx',
     'packages/ui/src/components/typography/text.tsx',
     'packages/ui/src/components/accessibility/focus-link.tsx',

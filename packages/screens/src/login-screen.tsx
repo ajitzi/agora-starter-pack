@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Button, Paragraph, Screen, ScreenHeader, SkipLink, UiProvider, YStack } from '@project/ui';
+import { useEffect, useRef, useState } from 'react';
+import type { ComponentRef } from 'react';
+import { Button, FieldLabel, Form, Paragraph, Screen, ScreenHeader, SkipLink, TextInput, UiProvider, YStack } from '@project/ui';
 
 type LoginState = 'ready' | 'submitting' | 'success' | 'invalidCredentials' | 'error';
 
@@ -9,14 +10,13 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [state, setState] = useState<LoginState>('ready');
-  const summary = useRef<HTMLDivElement>(null);
+  const summary = useRef<ComponentRef<typeof YStack>>(null);
 
   useEffect(() => {
     if (state === 'invalidCredentials' || state === 'error') summary.current?.focus();
   }, [state]);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit() {
     if (state === 'submitting') return;
     setState('submitting');
     try {
@@ -51,27 +51,25 @@ export function LoginScreen() {
   return (
     <UiProvider>
       <SkipLink />
-      <Screen asChild>
-        <main id="main-content" aria-labelledby="login-title">
-          <ScreenHeader id="login-title" title="Connexion" context="La Cabane du Merle" />
-          <YStack maxWidth={480} width="100%" gap="$md">
-            <div ref={summary} tabIndex={-1} role={error ? 'alert' : 'status'} aria-live="polite">
-              {error ? <Paragraph>{error}</Paragraph> : state === 'success' ? <Paragraph>Connexion réussie.</Paragraph> : null}
-            </div>
-            <form onSubmit={submit} aria-describedby={error ? 'login-error-summary' : undefined}>
+      <Screen id="main-content" role="main" aria-labelledby="login-title">
+        <ScreenHeader id="login-title" title="Connexion" context="La Cabane du Merle" />
+        <YStack maxWidth={480} width="100%" gap="$md">
+          <YStack ref={summary} tabIndex={-1} role={error ? 'alert' : 'status'} aria-live="polite">
+            {error ? <Paragraph>{error}</Paragraph> : state === 'success' ? <Paragraph>Connexion réussie.</Paragraph> : null}
+          </YStack>
+          <Form onSubmit={submit} aria-describedby={error ? 'login-error-summary' : undefined}>
               <YStack gap="$md">
-                <div id="login-error-summary" hidden={!error}>{error}</div>
-                <label htmlFor="login-email">Email</label>
-                <input id="login-email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={email} onChange={(event) => setEmail(event.target.value)} />
-                <label htmlFor="login-password">Mot de passe</label>
-                <input id="login-password" name="password" type="password" autoComplete="current-password" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={password} onChange={(event) => setPassword(event.target.value)} />
+                <YStack id="login-error-summary" display={error ? 'flex' : 'none'}><Paragraph>{error}</Paragraph></YStack>
+                <FieldLabel htmlFor="login-email">Email</FieldLabel>
+                <TextInput id="login-email" name="email" type="email" autoComplete="email" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={email} onChangeText={setEmail} />
+                <FieldLabel htmlFor="login-password">Mot de passe</FieldLabel>
+                <TextInput id="login-password" name="password" type="password" autoComplete="current-password" required aria-invalid={Boolean(error)} aria-errormessage={error ? 'login-error-summary' : undefined} value={password} onChangeText={setPassword} />
                 <Button type="submit" disabled={state === 'submitting'} aria-busy={state === 'submitting'}>
                   {state === 'submitting' ? 'Connexion en cours...' : 'Se connecter'}
                 </Button>
               </YStack>
-            </form>
-          </YStack>
-        </main>
+          </Form>
+        </YStack>
       </Screen>
     </UiProvider>
   );

@@ -6,6 +6,11 @@ const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? '')
 
 export default {
   allowedDevOrigins,
+  turbopack: {
+    resolveAlias: {
+      'react-native': 'react-native-web',
+    },
+  },
   async rewrites() {
     if (!apiUrl) return [];
     return [{ source: '/v1/:path*', destination: `${apiUrl}/v1/:path*` }];

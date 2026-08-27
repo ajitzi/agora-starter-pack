@@ -37,6 +37,10 @@ L’interface doit privilégier :
 
 Chaque écran doit répondre à une intention principale.
 
+## Implémentation multiplateforme
+
+Les écrans et composants partagés n’écrivent jamais de JSX HTML natif. Ils composent uniquement les primitives Tamagui et les composants de `@project/ui`, y compris les éléments de formulaire et de lien. Les rôles et propriétés d’accessibilité doivent être portables entre le web et les futures cibles native.
+
 Exemples :
 
 * Que dois-je faire aujourd’hui ?

@@ -32,6 +32,8 @@ jobs:
         run: pnpm cycles
       - name: Test and verify OpenAPI
         run: pnpm test
+      - name: Build web
+        run: pnpm --filter @project/web build
 
   docker-smoke-test:
     name: Docker smoke test
