@@ -2,9 +2,9 @@ import { createTamagui, createTokens } from 'tamagui';
 
 export const UI_TOKENS = {
   color: {
-    surfaceBase: '#F7F6F1', surfaceRaised: '#FFFFFF', surfaceSubtle: '#ECEBE3',
+    surfaceBase: '#F7F6F1', surfaceRaised: '#FFFFFF', surfaceSubtle: '#ECEBE3', surfaceDangerSubtle: '#FBE9E7',
     inkPrimary: '#1D2A1F', inkSecondary: '#536055', inkDisabled: '#8A928B',
-    borderSubtle: '#D7D9D1', actionPrimary: '#285B35', actionPrimaryPressed: '#1D4728', actionOnPrimary: '#FFFFFF',
+    borderSubtle: '#D7D9D1', actionPrimary: '#285B35', actionPrimaryPressed: '#1D4728', actionDanger: '#A9362A', actionDangerPressed: '#81261D', actionOnPrimary: '#FFFFFF',
     statusSuccess: '#216E39', statusWarning: '#8A5A00', statusDanger: '#A9362A', statusInfo: '#245D85',
     focusRing: '#245D85', focusOnPrimary: '#FFFFFF',
   },
@@ -21,9 +21,9 @@ export const UI_TOKENS = {
 
 const tokens = createTokens({
   color: {
-    'surface-base': UI_TOKENS.color.surfaceBase, 'surface-raised': UI_TOKENS.color.surfaceRaised, 'surface-subtle': UI_TOKENS.color.surfaceSubtle,
+    'surface-base': UI_TOKENS.color.surfaceBase, 'surface-raised': UI_TOKENS.color.surfaceRaised, 'surface-subtle': UI_TOKENS.color.surfaceSubtle, 'surface-danger-subtle': UI_TOKENS.color.surfaceDangerSubtle,
     'ink-primary': UI_TOKENS.color.inkPrimary, 'ink-secondary': UI_TOKENS.color.inkSecondary, 'ink-disabled': UI_TOKENS.color.inkDisabled,
-    'border-subtle': UI_TOKENS.color.borderSubtle, 'action-primary': UI_TOKENS.color.actionPrimary, 'action-primary-pressed': UI_TOKENS.color.actionPrimaryPressed,
+    'border-subtle': UI_TOKENS.color.borderSubtle, 'action-primary': UI_TOKENS.color.actionPrimary, 'action-primary-pressed': UI_TOKENS.color.actionPrimaryPressed, 'action-danger': UI_TOKENS.color.actionDanger, 'action-danger-pressed': UI_TOKENS.color.actionDangerPressed,
     'action-on-primary': UI_TOKENS.color.actionOnPrimary, 'status-success': UI_TOKENS.color.statusSuccess, 'status-warning': UI_TOKENS.color.statusWarning,
     'status-danger': UI_TOKENS.color.statusDanger, 'status-info': UI_TOKENS.color.statusInfo, 'focus-ring': UI_TOKENS.color.focusRing,
     'focus-on-primary': UI_TOKENS.color.focusOnPrimary,

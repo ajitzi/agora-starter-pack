@@ -11,6 +11,7 @@ export { ConfirmDialog } from './components/feedback/confirm-dialog';
 export type { CollectionNoticeGate, RuntimeNotice } from './components/feedback/collection-notice-gate-view';
 export { resolveCollectionNoticeGate } from './components/feedback/notice.mjs';
 export { Button } from './components/button/button';
+export { Menu } from './components/menu/menu';
 export { FieldLabel } from './components/form/field-label';
 export { Form } from './components/form/form';
 export { ACCOUNT_ROLES, RolePicker } from './components/form/role-picker';
