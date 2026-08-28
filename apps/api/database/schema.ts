@@ -7,8 +7,36 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AccountMutationSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'idempotencyKey', 'operation', 'principalId', 'requestFingerprint', 'result'] as const
+  $columns = AccountMutationSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare operation: string
+  @column()
+  declare principalId: string
+  @column()
+  declare requestFingerprint: string
+  @column()
+  declare result: any
+}
+
+export class AccountRoleSchema extends BaseModel {
+  static $columns = ['accountId', 'role'] as const
+  $columns = AccountRoleSchema.$columns
+  @column({ isPrimary: true })
+  declare accountId: string
+  @column()
+  declare role: string
+}
+
 export class AccountSchema extends BaseModel {
-  static $columns = ['active', 'createdAt', 'email', 'id', 'passwordHash', 'role', 'updatedAt'] as const
+  static $columns = ['active', 'createdAt', 'email', 'id', 'lastActivityAt', 'passwordHash', 'updatedAt', 'version'] as const
   $columns = AccountSchema.$columns
   @column()
   declare active: boolean
@@ -18,12 +46,14 @@ export class AccountSchema extends BaseModel {
   declare email: string
   @column({ isPrimary: true })
   declare id: string
+  @column.dateTime()
+  declare lastActivityAt: DateTime | null
   @column()
   declare passwordHash: string
-  @column()
-  declare role: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+  @column()
+  declare version: number
 }
 
 export class EmailJobSchema extends BaseModel {
@@ -103,14 +133,24 @@ export class PasswordResetTokenSchema extends BaseModel {
 }
 
 export class SecurityAuditProofSchema extends BaseModel {
-  static $columns = ['accountId', 'action', 'id', 'occurredAt'] as const
+  static $columns = ['accountId', 'action', 'actorId', 'after', 'before', 'id', 'objectId', 'objectType', 'occurredAt'] as const
   $columns = SecurityAuditProofSchema.$columns
   @column()
   declare accountId: string | null
   @column()
   declare action: string
+  @column()
+  declare actorId: string | null
+  @column()
+  declare after: any | null
+  @column()
+  declare before: any | null
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare objectId: string | null
+  @column()
+  declare objectType: string | null
   @column.dateTime()
   declare occurredAt: DateTime
 }

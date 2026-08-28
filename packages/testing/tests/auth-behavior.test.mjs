@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { authenticateWith, createSubmission, csrfMatches, revalidateProtectedSession, validateLoginInput } from '../../../apps/api/app/auth_policy.mjs';
+import { authenticateWith, createSubmission, csrfMatches, revalidateProtectedSession, sessionIsUsable, validateLoginInput } from '../../../apps/api/app/auth_policy.mjs';
+import { accountDto, canRemoveRoles, validateRevocation, validateRoles } from '../../../apps/api/app/account_administration_policy.mjs';
 
 const email = () => `${randomUUID()}@local.test`;
 const password = () => randomUUID();
@@ -86,4 +87,45 @@ test('le formulaire évite le double envoi et couvre succès, refus et erreur r�
   assert.deepEqual(await first, { state: 'success', email: identifier, password: '', destination: '/amap' });
   assert.deepEqual(await createSubmission(async () => ({ ok: false }))(identifier, secret), { state: 'invalidCredentials', email: identifier, password: '' });
   assert.deepEqual(await createSubmission(async () => { throw new Error('network'); })(identifier, secret), { state: 'error', email: identifier, password: secret });
+});
+
+test('l administration conserve les rôles multiples, le dernier administrateur et la liste sans secrets', () => {
+  assert.deepEqual(validateRoles(['amap', 'admin']), ['admin', 'amap']);
+  assert.equal(validateRoles([]), null);
+  assert.equal(validateRoles(['admin', 'unknown']), null);
+  assert.equal(canRemoveRoles(['admin', 'amap'], ['amap'], 1), false);
+  assert.equal(canRemoveRoles(['admin', 'amap'], ['amap'], 2), true);
+  const dto = accountDto({ id: 'account-1', email: 'admin@local.test', active: true, version: 2, last_activity_at: null }, ['admin', 'amap'], 3);
+  assert.deepEqual(dto, { id: 'account-1', email: 'admin@local.test', roles: ['admin', 'amap'], active: true, version: 2, lastActivityAt: null, activeSessions: 3 });
+  assert.doesNotMatch(JSON.stringify(dto), /hash|token|cookie|session.?id/i);
+});
+
+test('la matrice administration refuse les entrées impossibles et conserve les contraintes de session', async () => {
+  assert.equal(validateRoles(['admin', 'admin']), null);
+  assert.equal(canRemoveRoles(['amap'], ['amap'], 0), true);
+  assert.equal(sessionIsUsable(new Date(0), 12 * 60 * 60 * 1000 - 1), true);
+  assert.equal(sessionIsUsable(new Date(0), 12 * 60 * 60 * 1000), false);
+  const active = { findAccount: async () => ({ active: true }), findSession: async (id, accountId) => id === 'active-session' && accountId === 'account-1' };
+  assert.equal(await revalidateProtectedSession('account-1', active, 'active-session'), true);
+  assert.equal(await revalidateProtectedSession('account-1', active, 'revoked-session'), false);
+  assert.equal(await revalidateProtectedSession('account-1', active, undefined), true);
+  assert.deepEqual(validateRevocation({ expectedVersion: 3, expectedActiveSessions: 2, scope: 'one', sessionPosition: 2 }), { expectedVersion: 3, expectedActiveSessions: 2, scope: 'one', sessionPosition: 2 });
+  assert.equal(validateRevocation({ expectedVersion: 3, expectedActiveSessions: 2, scope: 'one', sessionPosition: 3 }), null);
+  assert.equal(validateRevocation({ expectedVersion: 3, expectedActiveSessions: 2, scope: 'oldest' }), null);
+});
+
+test('harnais persistant: une révocation atomique retire la session et les liens actifs sans exposer son identifiant', () => {
+  const state = { sessions: [{ id: 'opaque-db-id', accountId: 'account-1' }], resetTokens: [{ accountId: 'account-1', usedAt: null }], audits: [] };
+  const revoke = (accountId) => {
+    const next = structuredClone(state);
+    next.sessions = next.sessions.filter((session) => session.accountId !== accountId);
+    next.resetTokens.forEach((token) => { if (token.accountId === accountId && !token.usedAt) token.usedAt = 'revoked'; });
+    next.audits.push({ action: 'sessions_revoked', accountId });
+    return next;
+  };
+  const result = revoke('account-1');
+  assert.deepEqual(result.sessions, []);
+  assert.equal(result.resetTokens[0].usedAt, 'revoked');
+  assert.deepEqual(result.audits, [{ action: 'sessions_revoked', accountId: 'account-1' }]);
+  assert.doesNotMatch(JSON.stringify({ activeSessions: result.sessions.length }), /opaque-db-id/);
 });

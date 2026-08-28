@@ -7,10 +7,17 @@ export function csrfMatches(expected, received) {
   return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
 }
 
-export async function revalidateProtectedSession(sessionId, dependencies) {
-  if (!sessionId) return false;
-  const account = await dependencies.findAccount(sessionId);
-  return Boolean(account?.active);
+export async function revalidateProtectedSession(accountId, dependencies, protectedSessionId) {
+  if (!accountId) return false;
+  const account = await dependencies.findAccount(accountId);
+  if (!account?.active) return false;
+  if (!protectedSessionId) return true;
+  return Boolean(await dependencies.findSession?.(protectedSessionId, accountId));
+}
+
+export function sessionIsUsable(lastActivityAt, now = Date.now()) {
+  if (!(lastActivityAt instanceof Date) || Number.isNaN(lastActivityAt.getTime())) return false;
+  return now - lastActivityAt.getTime() < 12 * 60 * 60 * 1000;
 }
 
 export function normalizeEmail(value) {

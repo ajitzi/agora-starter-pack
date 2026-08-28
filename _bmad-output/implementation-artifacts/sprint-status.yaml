@@ -10,7 +10,7 @@
 # in-progress, review and done.
 
 generated: 08-25-2026 17:00
-last_updated: 08-27-2026
+last_updated: 08-28-2026
 project: la-cabane-du-merle
 project_key: NOKEY
 tracking_system: file-system
@@ -23,7 +23,7 @@ development_status:
   1-3-automatiser-la-ci-et-produire-les-artefacts: review
   1-4-se-connecter-avec-email-et-mot-de-passe: review
   1-5-réinitialiser-son-mot-de-passe-par-email: review
-  1-6-administrer-les-comptes-et-les-sessions: backlog
+  1-6-administrer-les-comptes-et-les-sessions: review
   1-7-appliquer-les-rôles-et-le-cloisonnement-des-données: backlog
   1-8-auditer-et-consulter-les-actions-de-sécurité: backlog
   epic-1-retrospective: optional

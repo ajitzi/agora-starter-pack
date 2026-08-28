@@ -138,6 +138,7 @@ test('le listener Adonis expose la santé avec la corrélation fournie', async (
     for (const [name, request] of [
       ['csrf', fetch(`http://127.0.0.1:${port}/v1/auth/csrf`)],
       ['logout', fetch(`http://127.0.0.1:${port}/v1/auth/logout`, { method: 'POST' })],
+      ['administration', fetch(`http://127.0.0.1:${port}/v1/admin/accounts`)],
     ]) {
       const protectedResponse = await request;
       const protectedBody = await protectedResponse.text();

@@ -3,6 +3,7 @@ import router from '@adonisjs/core/services/router';
 import server from '@adonisjs/core/services/server';
 import { createApiResponse, problem } from './http.js';
 import { csrf, currentSession, login, logout, requestRecovery, resetPasswordWithToken } from './auth_controller.js';
+import { accounts, create, revoke, update } from './account_administration_controller.js';
 
 export { createApiResponse, problem };
 
@@ -31,4 +32,8 @@ router.post('/v1/auth/login', login);
 router.post('/v1/auth/recovery', requestRecovery);
 router.post('/v1/auth/reset-password', resetPasswordWithToken);
 router.post('/v1/auth/logout', logout);
+router.get('/v1/admin/accounts', accounts);
+router.post('/v1/admin/accounts', create);
+router.patch('/v1/admin/accounts/:id', update);
+router.post('/v1/admin/accounts/:id/sessions/revoke', revoke);
 router.any('*', notFound);

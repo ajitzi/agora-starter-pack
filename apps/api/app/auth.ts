@@ -18,8 +18,18 @@ export function sameCsrfToken(expected: string | undefined, received: string | u
   return csrfMatches(expected, received);
 }
 
+/** A session write refreshes the database store TTL, making its 12h age an inactivity limit. */
+export function recordProtectedActivity(session: { put(key: string, value: string): void }) {
+  session.put('lastActivityAt', String(Date.now()));
+}
+
+export async function bindSessionToAccount(sessionId: string | undefined, accountId: string) {
+  if (!sessionId) return;
+  await db.from('sessions').where('id', sessionId).update({ user_id: accountId });
+}
+
 export async function hasActiveAccount(accountId: string) {
-  return revalidateProtectedSession(accountId, { findAccount: (id) => Account.find(id) });
+  return revalidateProtectedSession(accountId, { findAccount: (id: string) => Account.find(id) });
 }
 
 export async function waitForGenericFailure() {

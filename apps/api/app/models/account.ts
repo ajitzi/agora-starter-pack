@@ -12,6 +12,7 @@ export default class Account extends compose(BaseModel, AuthFinder) {
   @column({ isPrimary: true }) declare id: string;
   @column() declare email: string;
   @column({ serializeAs: null }) declare passwordHash: string;
-  @column() declare role: 'admin' | 'amap';
   @column() declare active: boolean;
+  @column() declare version: number;
+  @column.dateTime() declare lastActivityAt: Date | null;
 }

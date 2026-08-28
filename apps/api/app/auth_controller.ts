@@ -1,13 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { authenticate, csrfToken, hasActiveAccount, normalizeEmail, sameCsrfToken } from './auth.js';
+import { authenticate, bindSessionToAccount, csrfToken, hasActiveAccount, normalizeEmail, recordProtectedActivity, sameCsrfToken } from './auth.js';
 import Account from './models/account.js';
 import { problem } from './http.js';
 import { validateLoginInput } from './validators/auth.js';
 import { requestPasswordRecovery, resetPassword, validateNewPassword, validateRecoveryRequest } from './password_recovery.js';
+import { isAdministrator } from './account_administration.js';
 
 type AuthContext = HttpContext & {
   auth: { use(name: 'web'): { authenticate(): Promise<{ id: string } | undefined>; isAuthenticated: boolean; login(account: { id: string }): Promise<void>; logout(): Promise<void> } };
-  session: { get(key: string): unknown; put(key: string, value: string): void; forget(key: string): void };
+  session: { sessionId: string; get(key: string): unknown; put(key: string, value: string): void; forget(key: string): void };
 };
 
 const destinationFor = (role: 'admin' | 'amap') => role === 'admin' ? '/administration' : '/amap';
@@ -28,7 +29,8 @@ export async function login(context: HttpContext) {
 
   await auth.use('web').login(result.account);
   session.put('csrf', csrfToken());
-  return response.ok({ role: result.account.role, destination: destinationFor(result.account.role) });
+  const role = await isAdministrator(result.account.id) ? 'admin' : 'amap';
+  return response.ok({ role, destination: destinationFor(role) });
 }
 
 export async function requestRecovery(context: HttpContext) {
@@ -57,6 +59,8 @@ export async function csrf(context: HttpContext) {
     const guard = auth.use('web');
     const account = await guard.authenticate();
     if (!account || !guard.isAuthenticated || !await hasActiveAccount(account.id)) throw new Error('unauthenticated');
+    await bindSessionToAccount(session.sessionId, account.id);
+    recordProtectedActivity(session);
   } catch {
     return sendProblem(context, 401, 'Accès refusé', 'La session est absente, expirée ou refusée.');
   }
@@ -75,7 +79,11 @@ export async function currentSession(context: HttpContext) {
     if (!principal || !guard.isAuthenticated || !await hasActiveAccount(principal.id)) throw new Error('unauthenticated');
     const account = await Account.find(principal.id);
     if (!account?.active) throw new Error('inactive');
-    return response.ok({ email: account.email, role: account.role, destination: destinationFor(account.role) });
+    await bindSessionToAccount(session.sessionId, account.id);
+    recordProtectedActivity(session);
+    const role = await isAdministrator(account.id) ? 'admin' : 'amap';
+    await Account.query().where('id', account.id).update({ lastActivityAt: new Date() });
+    return response.ok({ email: account.email, role, destination: destinationFor(role) });
   } catch {
     return sendProblem(context, 401, 'Accès refusé', 'La session est absente, expirée ou refusée.');
   }

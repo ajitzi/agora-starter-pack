@@ -7,6 +7,7 @@ export { ScreenHeader } from './layout/screen/screen-header';
 export { StickyActionBar } from './layout/screen/sticky-action-bar';
 export { SkipLink } from './components/accessibility/skip-link';
 export { CollectionNoticeGateView } from './components/feedback/collection-notice-gate-view';
+export { ConfirmDialog } from './components/feedback/confirm-dialog';
 export type { CollectionNoticeGate, RuntimeNotice } from './components/feedback/collection-notice-gate-view';
 export { resolveCollectionNoticeGate } from './components/feedback/notice.mjs';
 export { Button } from './components/button/button';

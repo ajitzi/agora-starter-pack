@@ -20,8 +20,12 @@ export default class CreateFirstAdmin extends BaseCommand {
     }
     const now = new Date();
     try {
-      await db.table('accounts').insert({
-        id: randomUUID(), email: input.email, password_hash: await hash.make(input.password), role: 'admin', active: true, created_at: now, updated_at: now,
+      await db.transaction(async (transaction) => {
+        const id = randomUUID();
+        await transaction.table('accounts').insert({
+          id, email: input.email, password_hash: await hash.make(input.password), active: true, version: 1, created_at: now, updated_at: now,
+        });
+        await transaction.table('account_roles').insert({ account_id: id, role: 'admin' });
       });
       this.logger.success('Premier administrateur créé.');
     } catch {
