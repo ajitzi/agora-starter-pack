@@ -1,14 +1,12 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { Form as TamaguiForm, styled } from 'tamagui';
+import { Form as TamaguiForm } from 'tamagui';
 
-const StyledForm = styled(TamaguiForm, {});
-
-type FormProps = Omit<ComponentProps<typeof StyledForm>, 'onSubmit'> & {
+type FormProps = Omit<ComponentProps<typeof TamaguiForm>, 'onSubmit'> & {
   onSubmit?: (event: { preventDefault(): void }) => void;
 };
 
 export function Form({ onSubmit, ...props }: FormProps) {
-  return <StyledForm {...props} onSubmit={() => { onSubmit?.({ preventDefault() {} }); }} />;
+  return <TamaguiForm {...props} onSubmit={() => { onSubmit?.({ preventDefault() {} }); }} />;
 }

@@ -13,6 +13,8 @@ export { resolveCollectionNoticeGate } from './components/feedback/notice.mjs';
 export { Button } from './components/button/button';
 export { FieldLabel } from './components/form/field-label';
 export { Form } from './components/form/form';
+export { ACCOUNT_ROLES, RolePicker } from './components/form/role-picker';
+export type { AccountRole } from './components/form/role-picker';
 export { TextInput } from './components/form/text-input';
 export { Paragraph } from './components/typography/paragraph';
 export { Text } from './components/typography/text';
