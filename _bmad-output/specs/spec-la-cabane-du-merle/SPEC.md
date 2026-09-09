@@ -1,7 +1,7 @@
 ---
-id: SPEC-la-cabane-du-merle
+id: SPEC-agora-starter-pack
 companions:
-  - ../../planning-artifacts/architecture/architecture-la-cabane-du-merle-2026-08-24/ARCHITECTURE-SPINE.md
+  - ../../planning-artifacts/architecture/architecture-agora-starter-pack-2026-08-24/ARCHITECTURE-SPINE.md
 sources: []
 ---
 
