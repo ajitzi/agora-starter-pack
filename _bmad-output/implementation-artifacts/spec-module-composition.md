@@ -83,26 +83,26 @@ La propriete de ressource utilise une cle stable namespacee par type, par exempl
 **Contrat de composition**
 
 - La validation pure bloque les compositions incoherentes avant toute materialisation.
-  [`module-composition.mjs:31`](../../tools/module-composition.mjs#L31)
+  [`module-composition.mjs:31`](../../tools/module-composition.mjs)
 
 - Les listes sont validees avant tri et les collisions sont deterministes.
-  [`module-composition.mjs:5`](../../tools/module-composition.mjs#L5)
+  [`module-composition.mjs:5`](../../tools/module-composition.mjs)
 
 **Frontieres workspace**
 
 - Le graphe attribue un owner aux modules et refuse les noms ambigus.
-  [`workspace-graph.mjs:23`](../../tools/workspace-graph.mjs#L23)
+  [`workspace-graph.mjs:23`](../../tools/workspace-graph.mjs)
 
 - Les controles existants appliquent les frontieres generiques aux modules.
-  [`check-boundaries.mjs:3`](../../tools/check-boundaries.mjs#L3)
+  [`check-boundaries.mjs:3`](../../tools/check-boundaries.mjs)
 
 **Integration et preuves**
 
 - pnpm decouvre maintenant les workspaces de modules.
-  [`pnpm-workspace.yaml:1`](../../pnpm-workspace.yaml#L1)
+  [`pnpm-workspace.yaml:1`](../../pnpm-workspace.yaml)
 
 - Les scenarios de resolution couvrent le contrat et ses echecs.
-  [`module-composition.test.mjs:7`](../../tools/module-composition.test.mjs#L7)
+  [`module-composition.test.mjs:7`](../../tools/module-composition.test.mjs)
 
 - Un fixture temporaire prouve que le scanner observe une vraie source module.
-  [`workspace-graph.test.mjs:17`](../../tools/workspace-graph.test.mjs#L17)
+  [`workspace-graph.test.mjs:17`](../../tools/workspace-graph.test.mjs)
