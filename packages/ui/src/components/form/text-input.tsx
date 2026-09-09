@@ -8,7 +8,7 @@ export const TextInput = styled(Input, {
   borderRadius: '$sm',
   borderWidth: 1,
   color: '$ink-primary',
-  fontSize: '$body',
+  fontSize: 16,
   minHeight: 44,
   paddingHorizontal: '$md',
   focusStyle: { borderColor: '$focus-ring', outlineColor: '$focus-ring', outlineWidth: '$focusRing' },

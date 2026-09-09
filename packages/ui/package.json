@@ -7,11 +7,10 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
-  "dependencies": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-native-web": "0.21.0",
+  "peerDependencies": {
+    "@tamagui/core": "2.7.7",
+    "react": ">=19.0.0 <20",
+    "react-dom": "19.0.0",
     "tamagui": "2.7.7"
-  },
-  "peerDependencies": {}
+  }
 }

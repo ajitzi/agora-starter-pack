@@ -8,7 +8,9 @@ export default {
   allowedDevOrigins,
   turbopack: {
     resolveAlias: {
+      '@tamagui/core': './node_modules/@tamagui/core',
       'react-native': 'react-native-web',
+      tamagui: './node_modules/tamagui',
     },
   },
   async rewrites() {
