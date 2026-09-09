@@ -8,8 +8,7 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@project/ui": "workspace:*",
-    "lucide-react": "^0.468.0"
+    "@project/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "19.1.0"

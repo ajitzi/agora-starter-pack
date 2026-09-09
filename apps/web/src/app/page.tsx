@@ -1,5 +1,5 @@
-import { AppShell } from '@project/screens';
+import { StarterPage } from './starter-page';
 
 export default function Page() {
-  return <AppShell />;
+  return <StarterPage />;
 }

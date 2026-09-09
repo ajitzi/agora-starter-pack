@@ -2,9 +2,11 @@
 .DS_Store
 node_modules/
 .next/
-.adonisjs/
+.strapi/
+.strapi-updater.json
 .tamagui/
 build/
+dist/
 coverage/
 .env
 .env.*

@@ -1,19 +1,9 @@
-import env from '#start/env';
-import app from '@adonisjs/core/services/app';
-import { defineConfig } from '@adonisjs/lucid';
-
-const databaseUrl = env.get('DATABASE_URL');
-if (!app.inTest && !databaseUrl) throw new Error('DATABASE_URL est requis hors test.');
-
-export default defineConfig({
-  connection: 'postgres',
-  connections: {
-    postgres: {
-      client: 'pg',
-      connection: {
-        connectionString: databaseUrl,
-      },
-      migrations: { naturalSort: true, paths: ['database/migrations'] },
+export default ({ env }: { env: (name: string, fallback?: string) => string }) => ({
+  connection: {
+    client: 'postgres',
+    connection: {
+      connectionString: env('DATABASE_URL'),
+      ssl: env('DATABASE_SSL', 'false') === 'true' ? { rejectUnauthorized: false } : false,
     },
   },
 });

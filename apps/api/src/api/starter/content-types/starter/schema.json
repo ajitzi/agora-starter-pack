@@ -1,0 +1,7 @@
+{
+  "kind": "collectionType",
+  "collectionName": "starters",
+  "info": { "singularName": "starter", "pluralName": "starters", "displayName": "Starter" },
+  "options": { "draftAndPublish": false },
+  "attributes": { "label": { "type": "string", "required": true } }
+}

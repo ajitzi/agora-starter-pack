@@ -1,10 +1,12 @@
 {
-  "extends": "../../packages/config/tsconfig.app.json",
   "compilerOptions": {
-    "rootDir": ".",
-    "noEmit": false,
-    "rewriteRelativeImportExtensions": true,
-    "experimentalDecorators": true
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "."
   },
-  "include": ["adonisrc.ts", "app/**/*.ts", "bin/**/*.ts", "config/**/*.ts", "start/**/*.ts"]
+  "include": ["config/**/*.ts", "src/**/*.ts"]
 }

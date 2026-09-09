@@ -2,32 +2,21 @@
   "name": "@project/api",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "node ace.js serve --hmr",
-    "start": "node ace.js serve",
+    "dev": "strapi develop",
+    "start": "strapi start",
     "typecheck": "tsc --noEmit",
-    "build": "node ace.js build"
+    "build": "strapi build"
   },
   "dependencies": {
-    "@adonisjs/auth": "10.1.0",
-    "@adonisjs/core": "7.5.0",
-    "@adonisjs/hash": "9.0.5",
-    "@adonisjs/lucid": "22.4.2",
-    "@adonisjs/session": "8.1.0",
-    "luxon": "3.7.2",
-    "pg": "8.23.0"
-  },
-  "config": {
-    "openapiVersion": "3.1.2"
+    "@strapi/strapi": "5.33.0",
+    "pg": "8.23.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "styled-components": "^6.5.3"
   },
   "devDependencies": {
-    "@adonisjs/assembler": "8.5.0",
-    "@poppinss/ts-exec": "1.4.4",
-    "hot-hook": "1.0.0",
-    "ts-node-maintained": "10.9.5"
-  },
-  "imports": {
-    "#start/*": "./start/*.js"
+    "@types/node": "24.3.0"
   }
 }

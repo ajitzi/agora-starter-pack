@@ -1,5 +1,5 @@
 {
-  "name": "la-cabane-du-merle",
+  "name": "cross-platform-starter",
   "private": true,
   "packageManager": "pnpm@10.14.0",
   "engines": {
@@ -11,20 +11,17 @@
     }
   },
   "scripts": {
-    "openapi:check": "redocly lint apps/api/openapi/v1.yaml",
-    "openapi:generate": "pnpm openapi:check && openapi-typescript apps/api/openapi/v1.yaml --output packages/api-client/src/index.ts",
-    "openapi:verify": "pnpm openapi:check && openapi-typescript apps/api/openapi/v1.yaml --output /tmp/la-cabane-du-merle-openapi.ts && cmp -s packages/api-client/src/index.ts /tmp/la-cabane-du-merle-openapi.ts && rm /tmp/la-cabane-du-merle-openapi.ts",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "lint": "node tools/check-source.mjs",
     "boundaries": "node tools/check-boundaries.mjs",
     "cycles": "node tools/check-cycles.mjs",
-    "test": "pnpm openapi:verify && node --test packages/testing/tests/*.test.mjs",
-    "build": "pnpm --recursive --if-present run build"
+    "test": "pnpm exec tsx --test \"apps/**/*.test.mjs\" \"packages/**/*.test.mjs\" \"tools/**/*.test.mjs\"",
+    "build": "pnpm --filter @project/api build && pnpm --filter @project/web build",
+    "mobile:check": "pnpm --filter @project/mobile run check"
   },
   "devDependencies": {
-    "@redocly/cli": "2.12.3",
     "@types/react": "19.2.18",
-    "openapi-typescript": "7.13.0",
+    "tsx": "4.20.5",
     "typescript": "5.8.3"
   }
 }

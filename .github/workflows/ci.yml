@@ -13,6 +13,20 @@ jobs:
   quality-gates:
     name: Quality gates
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_DB: starter
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d starter"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,82 +44,25 @@ jobs:
         run: pnpm boundaries
       - name: Check cycles
         run: pnpm cycles
-      - name: Test and verify OpenAPI
+      - name: Test
         run: pnpm test
-      - name: Build web
-        run: pnpm --filter @project/web build
-
-  docker-smoke-test:
-    name: Docker smoke test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/preprod' || github.ref == 'refs/heads/main')
-    needs: quality-gates
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build web image
-        run: docker build --tag ci-smoke-web --file apps/web/Dockerfile .
-      - name: Smoke test web
-        run: |
-          docker run --detach --rm --name ci-smoke-web --publish 3000:3000 ci-smoke-web
-          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 1 http://localhost:3000/
+      - name: Build web and API
+        run: pnpm build
+      - name: Validate Expo configuration
+        run: pnpm mobile:check
       - name: Build API image
-        run: docker build --tag ci-smoke-api --file apps/api/Dockerfile .
-      - name: Smoke test API
-        run: |
-          docker run --detach --rm --name ci-smoke-api --publish 3333:3333 --env APP_KEY=ci-smoke-test-app-key --env HOST=0.0.0.0 --env PORT=3333 --env LOG_LEVEL=error ci-smoke-api
-          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 1 http://localhost:3333/v1/health
-
-  publish-images:
-    name: Publish OCI images
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/preprod' || github.ref == 'refs/heads/main')
-    needs: [quality-gates, docker-smoke-test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    outputs:
-      web-digest: ${{ steps.web-build.outputs.digest }}
-      api-digest: ${{ steps.api-build.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: web-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/web
-          tags: type=sha,format=long
-          labels: org.opencontainers.image.revision=${{ github.sha }}
-      - id: web-build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          provenance: mode=max
-          tags: ${{ steps.web-meta.outputs.tags }}
-          labels: ${{ steps.web-meta.outputs.labels }}
-      - id: api-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/api
-          tags: type=sha,format=long
-          labels: org.opencontainers.image.revision=${{ github.sha }}
-      - id: api-build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          provenance: mode=max
-          tags: ${{ steps.api-meta.outputs.tags }}
-          labels: ${{ steps.api-meta.outputs.labels }}
-      - name: Report immutable image references
-        run: |
-          echo "Web: ghcr.io/${{ github.repository }}/web@${{ steps.web-build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "API: ghcr.io/${{ github.repository }}/api@${{ steps.api-build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+        run: docker build --tag cross-platform-starter-api --file apps/api/Dockerfile .
+      - name: Start API image
+        run: >-
+          docker run --detach --name cross-platform-starter-api
+          --add-host host.docker.internal:host-gateway
+          --publish 1337:1337
+          --env DATABASE_URL=postgres://postgres:postgres@host.docker.internal:5432/starter
+          --env APP_KEYS=ci-key-one,ci-key-two
+          --env API_TOKEN_SALT=ci-api-token-salt
+          --env ADMIN_JWT_SECRET=ci-admin-jwt-secret
+          --env TRANSFER_TOKEN_SALT=ci-transfer-token-salt
+          --env JWT_SECRET=ci-jwt-secret
+          cross-platform-starter-api
+      - name: Smoke test API image
+        run: curl --fail --retry 12 --retry-connrefused http://localhost:1337/api/health

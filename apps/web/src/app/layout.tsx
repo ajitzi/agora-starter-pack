@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import './tamagui.generated.css';
+import { Providers } from './providers';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="fr"><body>{children}</body></html>;
+  return <html lang="fr"><body><Providers>{children}</Providers></body></html>;
 }

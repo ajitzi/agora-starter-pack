@@ -1,4 +1,4 @@
-const apiUrl = process.env.API_URL?.replace(/\/+$/, '');
+const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
 const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? '')
   .split(',')
   .map((origin) => origin.trim().toLowerCase())
@@ -13,6 +13,6 @@ export default {
   },
   async rewrites() {
     if (!apiUrl) return [];
-    return [{ source: '/v1/:path*', destination: `${apiUrl}/v1/:path*` }];
+    return [{ source: '/api/:path*', destination: `${apiUrl}/api/:path*` }];
   },
 };
