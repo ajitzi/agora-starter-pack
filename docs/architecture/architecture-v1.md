@@ -8,7 +8,7 @@ La cible comprend :
 
 * une application web basée sur **Next.js** ;
 * une application mobile basée sur **Expo** ;
-* une API basée sur **AdonisJS**, avec **PostgreSQL** et **Lucid** pour la persistence ;
+* une API basée sur **Strapi**, avec **PostgreSQL** ;
 * une UI cross-platform basée sur **Tamagui** ;
 * des écrans fonctionnels placés dans `packages` afin d’être réutilisables entre web et mobile ;
 * des domaines métier indépendants des runtimes ;
@@ -94,7 +94,7 @@ apps/web/
 │   ├── app/
 │   │   ├── (admin)/
 │   │   ├── (client)/
-│   │   └── (amap)/
+│   │   └── (sample)/
 │   │
 │   ├── providers/
 │   ├── middleware/
@@ -168,78 +168,29 @@ Les routes doivent elles aussi rester fines et monter des écrans issus de `pack
 
 ---
 
-# 6. `apps/api` — AdonisJS
+# 6. `apps/api` — Strapi
 
-L’API utilise **AdonisJS** comme framework backend.
+L’API utilise **Strapi** comme framework backend.En utilisant un maximum le code et non l'interface strapi admin.
 
 La stack backend retenue est :
 
 ```text
-AdonisJS
-├── PostgreSQL
-├── Lucid
-├── VineJS
-├── Adonis Auth
-├── Ace
-└── Japa
+Strapi
+└── [TO COMPLETE]
 ```
 
-Les briques officielles du framework sont privilégiées lorsqu’elles répondent au besoin afin de conserver une stack cohérente et de limiter la fragmentation technique.
-
-AdonisJS reste néanmoins un **runtime et une couche d’infrastructure**. Les règles métier fondamentales continuent de vivre dans `packages/domains` et ne doivent pas dépendre d’AdonisJS, de Lucid ou de PostgreSQL.
-
-Structure indicative, alignée sur les conventions AdonisJS :
+Structure indicative, alignée sur les conventions Strapi :
 
 ```text
 apps/api/
-├── app/
-│   ├── controllers/
-│   │   ├── admin/
-│   │   ├── customer/
-│   │   ├── amap/
-│   │   └── auth/
-│   │
-│   ├── middleware/
-│   ├── validators/
-│   │
-│   ├── models/
-│   │   └── ...                  # modèles Lucid de persistence
-│   │
-│   ├── adapters/
-│   │   ├── persistence/
-│   │   │   ├── repositories/
-│   │   │   └── mappers/
-│   │   ├── email/
-│   │   ├── sms/
-│   │   └── notifications/
-│   │
-│   └── jobs/
-│
-├── start/
-│   └── routes.ts
-│
-├── config/
-│   ├── app.ts
-│   ├── auth.ts
-│   └── database.ts
-│
-├── database/
-│   ├── migrations/
-│   ├── seeders/
-│   └── factories/
-│
-├── tests/
-├── bin/
-├── ace.js
-├── adonisrc.ts
-└── package.json
+└── [TO COMPLETE]
 ```
 
 L’API est responsable de :
 
-* l’exposition HTTP via les routes et controllers AdonisJS ;
-* la validation des entrées à la frontière HTTP, notamment avec VineJS ;
-* l’authentification et la session via Adonis Auth ;
+* l’exposition HTTP via les routes et controllers Strapi ;
+* la validation des entrées à la frontière HTTP ;
+* l’authentification et la session via le système Strapi ;
 * l’autorisation technique et les middlewares ;
 * les tâches planifiées et les workers éventuels ;
 * la persistence PostgreSQL via Lucid ;
@@ -253,44 +204,17 @@ Le flux cible est :
 ```text
 HTTP
  ↓
-AdonisJS route / controller
- ↓
-validation / auth
- ↓
-cas d’usage de packages/domains/*/application
- ↓
-contrats métier / repositories
- ↓
-adapters apps/api
- ↓
-Lucid
+[TO COMPLETE]
  ↓
 PostgreSQL
 ```
 
 La règle centrale est :
 
-> **Lucid ne sort jamais de `apps/api`.**
+> **Strapi ne sort jamais de `apps/api`.**
 
-Un modèle Lucid représente la persistence. Il ne doit pas devenir l’entité métier utilisée par `packages/domains`.
-
-Exemple :
-
-```text
-packages/domains/orders/domain/order.ts
-        │
-        │ entité métier pure
-        ▼
-Order
-        ▲
-        │ mapping
-        ▼
-apps/api/app/models/order.ts
-        │
-        │ modèle Lucid
-        ▼
-PostgreSQL
-```
+Un modèle Strapi représente la persistence. Il ne doit pas devenir l’entité métier utilisée par `packages/domains`. 
+Cependant les schema json dédié à Strapi peuvent être disponibles dans packages/domains en tant qu'adaptater de l'entité ou de son DTO.
 
 ---
 
@@ -314,7 +238,7 @@ Structure :
 packages/screens/
 ├── admin/
 ├── client/
-└── amap/
+└── sample/
 ```
 
 Exemple :
