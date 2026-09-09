@@ -17,7 +17,7 @@
     "lint": "node tools/check-source.mjs",
     "boundaries": "node tools/check-boundaries.mjs",
     "cycles": "node tools/check-cycles.mjs",
-    "test": "pnpm exec tsx --test \"apps/**/*.test.mjs\" \"packages/**/*.test.mjs\" \"tools/**/*.test.mjs\"",
+    "test": "pnpm exec tsx --test \"apps/**/*.test.mjs\" \"modules/**/*.test.mjs\" \"packages/**/*.test.mjs\" \"tools/**/*.test.mjs\"",
     "build": "pnpm --filter @project/api build && pnpm --filter @project/web build",
     "mobile:check": "pnpm --filter @project/mobile run check"
   },
