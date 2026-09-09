@@ -1,13 +1,13 @@
 ---
 id: SPEC-agora-starter-pack
 companions:
-  - ../../planning-artifacts/architecture/architecture-agora-starter-pack-2026-08-24/ARCHITECTURE-SPINE.md
+  - ../../planning-artifacts/architecture/architecture-agora-starter-pack-2026-09-09/ARCHITECTURE-SPINE.md
 sources: []
 ---
 
 > **Canonical contract.** This SPEC and the files in `companions:` are the complete, preservation-validated contract for what to build, test, and validate.
 
-# La Cabane du Merle Architecture
+# Agora Starter Pack Architecture
 
 ## Why
 
@@ -33,22 +33,26 @@ Establish a build substrate for a TypeScript monorepo spanning web, mobile, API,
 
 ## Constraints
 
-- The mandatory dependency directions, public-entry-point imports, package structure, hexagonal boundaries, project UI API, configuration separation, and single-lockfile version policy are defined in `ARCHITECTURE-SPINE.md`.
+- The mandatory dependency directions, public-entry-point imports, package structure, hexagonal boundaries, project UI API, configuration separation, module composition, Strapi 5/PostgreSQL runtime, REST/OpenAPI contract, and single-lockfile version policy are defined in `ARCHITECTURE-SPINE.md`.
 
 ## Non-goals
 
-- Selecting the deferred API framework, HTTP contract format, authentication protocol, database, ORM, migration strategy, cloud topology, observability stack, job mechanism, authorization policy, or delivery toolchain before the corresponding product requirement exists.
 - Defining product behavior, domain aggregates, user roles, personal-data policy, or production service levels.
+- Choosing cloud provider, production PostgreSQL policy, backup provider, alerting backend, rate-limit provider, object storage provider, notification provider, or production SLO before a product requires them.
 
 ## Success signal
 
 - The first end-to-end capability can ship from shared web and mobile screens through a versioned API contract into a hexagonal domain, with boundary checks passing and its runtime, deployment, migration, and rollback ownership demonstrable.
 
-## Assumptions
+## Implementation Gates
 
-- API contract ownership, automated boundary enforcement, delivery ownership, and stack version compatibility are architecture assumptions to validate during implementation.
+- Before the first module: resolver, descriptor schema, generated build contract and module-aware boundary checks.
+- Before the first managed configuration: locked, idempotent `config-sync` with field ownership and drift tests.
+- Before the first transactional or asynchronous capability: migration/schema runner, idempotency and outbox persistence, worker and scheduler as applicable.
+- Before the first product endpoint: explicit OpenAPI generation, derived client and contract tests.
+- Before staging: accountable operational register, schema-diff gate and backup/restore evidence.
 
 ## Open Questions
 
-- Which API framework, HTTP contract format, and authentication protocol will implement the first API capability?
-- Which database, ORM, migration approach, cloud topology, observability, job mechanism, authorization policy, and delivery toolchain meet the first production requirements?
+- Which first capability proves the architecture after the foundations are implemented?
+- Which cloud topology, production PostgreSQL policy, backup/restore process, observability backend and operational roles meet the first production requirement?
