@@ -4,7 +4,7 @@ export function boundaryViolations(edges) {
   const violations = [];
   for (const { from, target, fromOwner, targetOwner, deep, crossRelative } of edges) {
     if (fromOwner && !fromOwner.startsWith('app:') && target.startsWith('@project/') && targetOwner?.startsWith('app:')) {
-      violations.push(`${from}: un package ne peut dependre d'une application (${target})`);
+      violations.push(`${from}: un workspace ne peut dependre d'une application (${target})`);
       continue;
     }
     if ((target === 'tamagui' || target.startsWith('tamagui/')) && fromOwner !== 'ui') {

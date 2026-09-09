@@ -5,7 +5,13 @@ import ts from 'typescript';
 const IGNORED_DIRECTORIES = new Set(['.next', '.strapi', '.tamagui', 'build', 'dist', 'node_modules']);
 
 async function files(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
   const nested = await Promise.all(entries.map(async (entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? (IGNORED_DIRECTORIES.has(entry.name) ? [] : files(path)) : [path];
@@ -13,7 +19,7 @@ async function files(directory) {
   return nested.flat();
 }
 
-const sourceFiles = (await Promise.all(['apps', 'packages'].map(files))).flat().filter((path) => /\.[cm]?[jt]sx?$/.test(path));
+const sourceFiles = (await Promise.all(['apps', 'modules', 'packages'].map(files))).flat().filter((path) => /\.[cm]?[jt]sx?$/.test(path));
 const violations = [];
 
 function hasNativeJsxElement(path, source) {
